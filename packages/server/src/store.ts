@@ -122,7 +122,18 @@ export class Store {
   }
 
   private classify(e: Entity, cfg: PaConfig): Entity {
-    const c = applyRules(e, cfg.classify);
+    // Cheaper than applyRules' structuredClone of the whole entity (history can be long): copy only what
+    // rules may write to. Rules are applied by applyRules itself on this small shell.
+    const shell = {
+      ...e,
+      labels: { ...e.labels },
+      view: { ...e.view },
+      metrics: { ...e.metrics },
+      activity: e.activity && { ...e.activity },
+      history: [] as Entity['history'],
+    };
+    const c = (cfg.classify.length ? applyRules(shell, cfg.classify) : shell) as Entity;
+    c.history = e.history.slice();
     c.view.group = c.view.group || renderTemplate(cfg.groups.by, c) || 'default';
     return c;
   }
