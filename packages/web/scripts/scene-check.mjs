@@ -1,6 +1,7 @@
 // Scene e2e: real server (port 4350) fed by fixtures/claude-code.v1.jsonl + `vite preview` (5350),
-// headless system Chrome. Checks 4 agents in 3 offices, a waiting agent with its "!" bubble, takes
-// scene-1.png (builders) and scene-2.png (finished town), and the mean frame time with 50 synthetic agents.
+// headless system Chrome. Checks 4 agents in 3 offices, a waiting agent with its "!" bubble, the crt
+// filter of plugin-effects on the `screen` layer, takes scene-1.png (builders), scene-2.png (finished
+// town), scene-wait.png, scene-fx.png, and the mean frame time with 50 synthetic agents.
 // Usage: node packages/web/scripts/scene-check.mjs   (SCENE_NOBUILD=1 to reuse dist/)
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -26,21 +27,22 @@ const fx = JSON.parse(fs.readFileSync(path.join(repo, 'fixtures', 'config.fixtur
 const cfg = {
   ...fx,
   inputs: [...fx.inputs.filter((i) => i.id === 'fx').map((i) => ({ ...i, path: live })), { id: 'http', type: 'http', adapter: 'claude-code' }],
-  plugins: ['@pixelagents/plugin-claude-code', '@pixelagents/plugin-pop'],
+  plugins: ['@pixelagents/plugin-claude-code', '@pixelagents/plugin-pop', '@pixelagents/plugin-effects'],
 };
 fs.writeFileSync(path.join(tmp, 'config.json'), JSON.stringify(cfg));
 
 const procs = [];
 const logs = [];
 function run(cmd, args, opts) {
-  const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], ...opts });
+  // own process group, so the cleanup also stops what npx starts (tsx, vite)
+  const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], detached: true, ...opts });
   p.stdout.on('data', (d) => logs.push(String(d)));
   p.stderr.on('data', (d) => logs.push(String(d)));
   procs.push(p);
   return p;
 }
 const cleanup = () => {
-  for (const p of procs) { try { p.kill('SIGTERM'); } catch { /* gone */ } }
+  for (const p of procs) { try { process.kill(-p.pid, 'SIGTERM'); } catch { /* gone */ } }
   fs.rmSync(tmp, { recursive: true, force: true });
 };
 process.on('exit', cleanup);
@@ -64,6 +66,8 @@ try {
   if (!process.env.SCENE_NOBUILD) {
     const b = spawnSync('npx', ['vite', 'build'], { cwd: webDir, encoding: 'utf8' });
     if (b.status !== 0) throw new Error('vite build failed:\n' + b.stdout + b.stderr);
+    const fxb = spawnSync('npm', ['run', 'build', '-w', '@pixelagents/plugin-effects'], { cwd: repo, encoding: 'utf8' });
+    if (fxb.status !== 0) throw new Error('plugin-effects build failed:\n' + fxb.stdout + fxb.stderr);
   }
   run('npx', ['tsx', path.join(repo, 'packages/server/src/cli.ts'), 'serve', '--config', path.join(tmp, 'config.json'), '--data-dir', path.join(tmp, 'data'), '--port', String(SP)], { cwd: repo });
   await waitUrl(`http://127.0.0.1:${SP}/api/state`, 'server');
@@ -76,7 +80,7 @@ try {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`http://127.0.0.1:${WP}/`);
-  await page.waitForFunction(() => window.__pixelagents?.scene.actors().length > 0, null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__pixelagents?.scene?.actors().length > 0, null, { timeout: 15000 });
 
   await page.waitForTimeout(1800);
   await page.screenshot({ path: path.join(here, 'scene-1.png') });
@@ -98,6 +102,19 @@ try {
     .then((h) => h.jsonValue()).catch(() => null);
   check('a waiting agent shows its "!" bubble', !!waiting, waiting ? `${waiting.id} at ${waiting.x},${waiting.y}` : 'none');
   await page.screenshot({ path: path.join(here, 'scene-wait.png') });
+
+  // config.effects with a client plugin filter on the `screen` layer (whole frame)
+  const user = await (await fetch(`http://127.0.0.1:${SP}/api/config`)).json();
+  const put = await fetch(`http://127.0.0.1:${SP}/api/config`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...user, effects: [{ layer: 'screen', filter: 'crt' }] }) });
+  check('PUT /api/config with effects', put.ok, `${put.status}`);
+  const fx = await page.waitForFunction(() => {
+    const e = window.__pixelagents.engine, f = e.scene.filters;
+    return (Array.isArray(f) ? f.length : f ? 1 : 0) > 0 && !!e.scene.filterArea;
+  }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('the crt filter (plugin-effects) runs on the whole scene', fx);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(here, 'scene-fx.png') });
+  await fetch(`http://127.0.0.1:${SP}/api/config`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...user, effects: [] }) });
 
   // 50 synthetic agents in 5 offices, all working
   const now = () => new Date().toISOString();
