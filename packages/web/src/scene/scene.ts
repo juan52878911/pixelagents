@@ -25,7 +25,7 @@ import { EMOJI_DUR, emojiAt, gagAt, allowedGags } from './fun.js';
 import { drawIcon } from './icons.js';
 import { behaviorFor, buildWorldInput, groupOf, placementFor } from './input.js';
 import {
-  RUGS, bubble, drawBuilder, drawChair, drawCoin, drawDeco, drawDeskBuilt, drawDoor, drawMinis, drawMonitor, drawPig, drawPod,
+  RUGS, bubble, drawBuilder, drawChair, drawDeco, drawDeskBuilt, drawDoor, drawMinis, drawMonitor, drawPig, drawPod,
   drawRug, drawThermo, hash, poof, sayBubble, talkBubble, txtW, type PodState,
 } from './props.js';
 import { paintConstruction, paintWorld, worldSize, type WorldArt } from './worldpaint.js';
@@ -53,7 +53,6 @@ export class Scene implements SceneApi {
   private worldArt: WorldArt | null = null;
   private worldLayer: PainterLayer | null = null;
   private dyn: PainterLayer | null = null;
-  private hud: PainterLayer;
   private inputKey = '';
   private geoKey = '';
   /** Scene time at which the current world started building (seconds). */
@@ -68,7 +67,6 @@ export class Scene implements SceneApi {
   private ctx: BehaviorContext;
   private randomSeed = Math.random().toString(36).slice(2, 8);
   private dirty = true;
-  private hudNext = 0;
   private offices: OfficeRt[] = [];
   private talkNext = new Map<string, number>();
 
@@ -79,8 +77,6 @@ export class Scene implements SceneApi {
     registerSceneBehaviors();
     bridgeStrategies();
     this.ctx = { world: this.engine.ecs, width: this.engine.width, height: this.engine.height, dt: 0 };
-    this.hud = new PainterLayer(this.engine.width, GY);
-    this.engine.layers.ui.addChild(this.hud.sprite);
     this.tip = document.createElement('div');
     Object.assign(this.tip.style, {
       position: 'absolute', pointerEvents: 'none', display: 'none', font: '12px ui-monospace, Menlo, monospace', color: '#ffe9a8',
@@ -266,7 +262,7 @@ export class Scene implements SceneApi {
       if (d.gone && this.removed.has(id)) this.despawn(id);
     }
     const L = this.layout, wa = this.worldArt;
-    if (!L || !wa || !this.worldLayer || !this.dyn) { this.drawHud(); return; }
+    if (!L || !wa || !this.worldLayer || !this.dyn) return;
     if (this.building) {
       if (this.tb >= L.build.buildEnd) {
         this.building = false;
@@ -282,7 +278,6 @@ export class Scene implements SceneApi {
     g.clear();
     this.paint(g, clock.t);
     this.dyn.flush();
-    this.drawHud();
   }
 
   private scheduleTalks(): void {
@@ -559,35 +554,6 @@ export class Scene implements SceneApi {
         drawBuilder(g, this.art, x, y, look, t + b * 0.3);
       }
     });
-  }
-
-  private drawHud(): void {
-    if (clock.t < this.hudNext) return;
-    this.hudNext = clock.t + 0.2;
-    const g = this.hud.painter, W = g.width, t = clock.t;
-    g.clear();
-    g.rect(0, 0, W, GY, '#14111b');
-    for (let x = 0; x < W; x += 2) g.px(x, GY - 1, '#2a2236');
-    g.text('PIXELAGENTS', 8, 6, '#ffe9a8', 2);
-    let lx = 106;
-    const skins = [...new Set([...this.store.entities.values()].filter((e) => e.kind === 'agent').map((e) => e.view?.skin || 'default'))].sort().slice(0, 4);
-    skins.forEach((sk, i) => {
-      const look = lookFor(sk, i * 5 + 2, this.config);
-      drawChar(g, this.art, lx, 6, look, { face: ((t + i) % 3) < 0.12 ? 'blink' : null });
-      const name = sk.toUpperCase().slice(0, 10);
-      g.text(name, lx + 13, 11, look.pal.B ?? '#ffe9a8');
-      lx += 14 + txtW(name) + 8;
-    });
-    const d = this.now();
-    const DOW = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'], MON = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-    const label = `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`;
-    if (lx + 6 + txtW(label) < W - 90) g.text(label, lx + 6, 11, '#b3abc4');
-    let total = 0;
-    for (const e of this.store.entities.values()) total += e.metrics?.cost_usd ?? 0;
-    const tt = 'HOY $' + total.toFixed(2);
-    drawCoin(g, this.art, W - 14 - txtW(tt), 8); g.text(tt, W - 8 - txtW(tt), 9, '#f5c542');
-    if (this.store.status !== 'open') g.text(this.store.status === 'idle' ? '' : this.store.status.toUpperCase(), W - 8 - txtW(this.store.status), 17, '#e5533d');
-    this.hud.flush();
   }
 
   // ---------------- pointer, SceneApi ----------------
