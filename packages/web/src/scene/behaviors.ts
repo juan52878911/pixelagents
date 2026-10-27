@@ -4,7 +4,9 @@
  * Timings follow the prototype (visitorSegs, convoState, POD_CYCLE, POOF).
  */
 import { type Actor, type BehaviorContext, type BehaviorDef, registerBehavior, setBehavior } from '../engine/behaviors.js';
+import type { Store } from '../store.js';
 import type { ActorData, SeatState } from './actor.js';
+import { HANDOFF_SEC, social } from './social.js';
 
 const WALK = 22; // px/s
 const LEGS = [1, 0, 2, 0];
@@ -16,7 +18,25 @@ export const clock = { t: 0 };
 const legs = () => LEGS[Math.floor(clock.t * 8) % 4]!;
 
 function reset(d: ActorData): void {
-  d.bt = 0; d.walker = null; d.say = null; d.wave = false; d.door = false; d.ding = 0; d.greet = -1; d.talk = null;
+  d.bt = 0; d.walker = null; d.say = null; d.wave = false; d.door = false; d.ding = 0; d.greet = -1; d.talk = null; d.handoff = null;
+}
+
+/**
+ * Hand-off (social.ts): when a subagent starts or finishes, the parent stands in front of its desk,
+ * where its minis sit, for HANDOFF_SEC. Reuses the `talk` render path (standing below the desk,
+ * monitor off) with `lt` fixed so the scene draws no talk bubble: the ping bubble shows the icon.
+ */
+function handoff(a: Actor, d: ActorData, dt: number): boolean {
+  if (!d.handoff) {
+    const k = d.slot ? social.consume(d.id) : null;
+    if (!k) return false;
+    d.handoff = { kind: k, t: 0 };
+  }
+  d.handoff.t += dt;
+  if (d.handoff.t >= HANDOFF_SEC || !d.slot) { d.handoff = null; d.talk = null; return false; }
+  d.seat = null;
+  d.talk = { with: '', phase: 'talk', x: d.slot.dx + 3, dir: 1, lt: 0.9 };
+  return true;
 }
 
 /** Leaves the current one-shot behavior for what the status wants now. */
@@ -29,7 +49,14 @@ function finish(a: Actor, ctx: BehaviorContext): void {
 function seated(state: SeatState): BehaviorDef {
   return {
     enter(a) { const d = dataOf(a); reset(d); d.seat = state; d.desk = 1; d.gone = false; d.showItem = true; },
-    update(a, dt) { const d = dataOf(a); d.bt += dt; d.seat = state; if (d.desk < 1) d.desk = Math.min(1, d.desk + dt); },
+    update(a, dt) {
+      const d = dataOf(a);
+      d.bt += dt;
+      if (d.desk < 1) d.desk = Math.min(1, d.desk + dt);
+      if (handoff(a, d, dt)) return;
+      d.seat = state;
+    },
+    exit(a) { const d = dataOf(a); if (d.handoff) { d.handoff = null; d.talk = null; } },
   };
 }
 
@@ -174,6 +201,8 @@ export const SCENE_BEHAVIORS: Record<string, BehaviorDef> = {
 /** Behaviors that must run to completion before the status mapping takes over again. */
 export const ONE_SHOT = new Set(['arrive', 'talk', 'teleport']);
 
-export function registerSceneBehaviors(): void {
+/** Registers the behaviors; with a store, also wires the social pings/hand-offs to its events. */
+export function registerSceneBehaviors(store?: Store): () => void {
   for (const [k, v] of Object.entries(SCENE_BEHAVIORS)) registerBehavior(k, v);
+  return store ? social.attach(store) : () => {};
 }

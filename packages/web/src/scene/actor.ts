@@ -48,12 +48,14 @@ export interface ActorData {
   talk: { with: string; phase: 'walk' | 'talk'; x: number; dir: number; lt: number } | null;
   /** Visited by a talker (draws the "talk" seat). */
   talkedBy: { lt: number } | null;
+  /** Standing in front of the desk handing work to / receiving it from its minis (social.ts). */
+  handoff: { kind: 'delegate' | 'receive'; t: number } | null;
 }
 
 export function newActorData(id: string, ent: Entity, look: Look, seed: number): ActorData {
   return {
     id, ent, look, seed, group: '', zone: null, place: 'desk', want: 'idle', slot: null, office: null, bt: 0,
     seat: null, walker: null, desk: 0, door: false, ding: 0, say: null, wave: false, showItem: false, greet: -1,
-    gone: false, pod: null, mini: null, talk: null, talkedBy: null,
+    gone: false, pod: null, mini: null, talk: null, talkedBy: null, handoff: null,
   };
 }

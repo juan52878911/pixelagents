@@ -32,6 +32,21 @@ export function fmtCost(usd: number | undefined): string {
   return `$${Math.round(usd).toLocaleString('en-US')}`;
 }
 
+/** 950, 12.3k, 1.2M tokens. */
+export function fmtTokens(v: number | undefined): string {
+  if (v === undefined || !Number.isFinite(v)) return '—';
+  if (v < 1000) return String(Math.round(v));
+  if (v < 1e6) return `${(v / 1000).toFixed(v < 10000 ? 1 : 0)}k`;
+  return `${(v / 1e6).toFixed(1)}M`;
+}
+
+/** Effort/intensity 0..100 as a 5-step pixel meter plus the number. */
+export function fmtIntensity(v: number | undefined): string {
+  const n = v === undefined || !Number.isFinite(v) ? 0 : Math.max(0, Math.min(100, v));
+  const steps = Math.round(n / 20);
+  return `${'■'.repeat(steps)}${'□'.repeat(5 - steps)} ${Math.round(n)}`;
+}
+
 export function fmtPct(v: number | undefined): string {
   return v === undefined || !Number.isFinite(v) ? '—' : `${Math.round(v)}%`;
 }

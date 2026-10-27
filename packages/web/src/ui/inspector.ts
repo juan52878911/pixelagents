@@ -1,6 +1,6 @@
 import type { Entity, PaEvent } from '@pixelagents/protocol';
 import type { UiContext } from './types.js';
-import { entityName, feedLine, fmtAgo, fmtCost, fmtDuration, fmtPct, shortPath } from './format.js';
+import { entityName, feedLine, fmtAgo, fmtCost, fmtDuration, fmtIntensity, fmtPct, fmtTokens, shortPath } from './format.js';
 import { filterIds, type Filter } from './inspector/filter.js';
 import { WaitingTracker } from './inspector/alerts.js';
 import { readPref, writePref } from './inspector/prefs.js';
@@ -16,6 +16,13 @@ export interface InspectorOptions {
 
 const FEED_MAX = 80;
 const HISTORY_SHOWN = 8;
+/** Metrics the curated sections already show; anything else is listed generically. */
+const CURATED = new Set([
+  'cost_usd', 'cost_est_usd', 'cost_turn_usd', 'context_pct', 'context_tokens', 'turns', 'tools', 'errors', 'error_streak', 'compactions', 'forks',
+  'subagents_live', 'tokens_in', 'tokens_out', 'tokens_cache_read', 'tokens_cache_write', 'turn_ms', 'turn_tools', 'turn_steps', 'turn_tokens_out',
+  'turn_tokens_in', 'waits', 'wait_ms_last', 'wait_ms_total', 'tools_per_min', 'intensity',
+]);
+const EFFORT_LABEL: Record<string, string> = { low: 'bajo', medium: 'medio', high: 'alto', xhigh: 'muy alto', max: 'máximo' };
 
 type Attrs = Record<string, string>;
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = {}, text?: string, ...kids: (Node | null)[]): HTMLElementTagNameMap[K] {
@@ -162,30 +169,90 @@ export function mountInspector(ctx: UiContext, opts: InspectorOptions = {}): () 
     row(dl, 'sesión', e.id);
     row(dl, 'cuenta', l.account); row(dl, 'equipo', l.team); row(dl, 'host', l.host);
     row(dl, 'repo', l.repo); row(dl, 'rama', l.branch); row(dl, 'modelo', l.model);
+    row(dl, 'tipo', l.agent_type); row(dl, 'permisos', l.permission_mode);
+    if (e.status === 'waiting' && act) row(dl, 'esperando', fmtDuration(now() - Date.parse(act.since)), tid('inspector-waiting'));
     row(dl, 'visto', fmtAgo(e.lastSeen, now()));
     kids.push(dl);
 
     const m = e.metrics;
-    kids.push(el('h3', {}, 'Métricas'));
+    // ---- turn in progress / last turn ----
+    const t = e.turn;
+    if (t) {
+      const open = !t.until;
+      kids.push(el('h3', {}, open ? `Turno ${t.n || ''} en curso`.replace('  ', ' ') : `Último turno${t.n ? ` (${t.n})` : ''}`));
+      const td = el('dl');
+      const turnMs = open ? now() - Date.parse(t.since) : m.turn_ms ?? Date.parse(t.until!) - Date.parse(t.since);
+      row(td, 'duración', fmtDuration(turnMs), tid('inspector-turn-elapsed'));
+      const parts = [`${t.tools} herr.`];
+      if (t.errors) parts.push(`${t.errors} err.`);
+      if (t.forks) parts.push(`${t.forks} subag.`);
+      if (!open && m.turn_steps) parts.push(`${m.turn_steps} pasos`);
+      row(td, 'actividad', parts.join(' · '), tid('inspector-turn-tools'));
+      if (!open && m.turn_tokens_out !== undefined) row(td, 'tokens', `${fmtTokens(m.turn_tokens_in)} → ${fmtTokens(m.turn_tokens_out)}`);
+      if (!open && m.cost_turn_usd !== undefined) row(td, 'coste', `≈ ${fmtCost(m.cost_turn_usd)}`);
+      kids.push(td);
+    }
+
+    // ---- effort ----
+    const ed = el('dl');
+    if (m.intensity !== undefined || l.effort) {
+      kids.push(el('h3', {}, 'Esfuerzo'));
+      if (m.intensity !== undefined) {
+        row(ed, 'intensidad', fmtIntensity(m.intensity), tid('inspector-intensity'));
+        if (m.tools_per_min) row(ed, 'ritmo', `${Math.round(m.tools_per_min * 10) / 10} herr./min`);
+      }
+      if (l.effort) row(ed, 'nivel', EFFORT_LABEL[l.effort] ?? l.effort);
+      kids.push(ed);
+    }
+
+    // ---- session totals ----
+    kids.push(el('h3', {}, 'Sesión'));
     const md = el('dl');
-    row(md, 'coste', fmtCost(m.cost_usd));
+    const cost = m.cost_usd ?? m.cost_est_usd;
+    if (cost !== undefined) row(md, 'coste', `${m.cost_usd === undefined ? '≈ ' : ''}${fmtCost(cost)}`, tid('inspector-cost'));
+    if (m.tokens_out !== undefined || m.tokens_in !== undefined) {
+      row(md, 'tokens', `${fmtTokens((m.tokens_in ?? 0) + (m.tokens_cache_read ?? 0) + (m.tokens_cache_write ?? 0))} → ${fmtTokens(m.tokens_out)}`, tid('inspector-tokens'));
+      if (m.tokens_cache_read) row(md, 'caché', `${fmtTokens(m.tokens_cache_read)} leídos`);
+    }
+    if (m.context_tokens !== undefined) row(md, 'contexto', `${fmtTokens(m.context_tokens)} tok`);
     if (m.context_pct !== undefined) {
       row(md, 'contexto', fmtPct(m.context_pct));
       md.append(el('dt', {}, ''), el('dd', {}, undefined, el('div', { class: 'pa-bar' }, undefined, el('i', { style: `width:${Math.min(100, m.context_pct)}%` }))));
     }
+    const totals = [];
+    if (m.turns) totals.push(`${m.turns} turnos`);
+    if (m.tools) totals.push(`${m.tools} herr.`);
+    if (m.errors) totals.push(`${m.errors} err.${m.error_streak && m.error_streak > 1 ? ` (${m.error_streak} seguidos)` : ''}`);
+    if (m.compactions) totals.push(`${m.compactions} compact.`);
+    if (totals.length) row(md, 'totales', totals.join(' · '), tid('inspector-totals'));
+    if (m.waits) row(md, 'esperas', `${m.waits}${m.wait_ms_total ? ` · ${fmtDuration(m.wait_ms_total)}` : ''}`);
     for (const [k, v] of Object.entries(m)) {
-      if (k === 'cost_usd' || k === 'context_pct') continue;
+      if (CURATED.has(k)) continue;
       row(md, k.replace(/_/g, ' '), /pct$/.test(k) ? fmtPct(v) : String(Math.round(v * 100) / 100));
     }
     kids.push(md);
 
+    // ---- relations: parent, subagents, repo mates ----
     const subs = [...store.entities.values()].filter((x) => x.parent === e.id);
     const parent = e.parent ? store.entities.get(e.parent) : undefined;
+    const live = subs.filter((x) => x.status !== 'ended').length;
     if (subs.length || parent) {
-      kids.push(el('h3', {}, 'Relacionados'));
+      kids.push(el('h3', {}, parent ? 'Relacionados' : `Subagentes · ${live} vivos${m.forks ? ` · ${m.forks} lanzados` : ''}`));
       const ul = el('ul');
       for (const x of parent ? [parent, ...subs] : subs) {
-        const b = el('button', tid('inspector-sub', { type: 'button', class: 'pa-link' }), `${x === parent ? '↑ ' : ''}${entityName(x)} · ${STATUS_LABEL[x.status] ?? x.status}`);
+        const tag = x === parent ? '↑ ' : x.status === 'ended' ? '✓ ' : '· ';
+        const b = el('button', tid('inspector-sub', { type: 'button', class: 'pa-link' }), `${tag}${x.labels.agent_type ? `${x.labels.agent_type} ` : ''}${entityName(x)} · ${STATUS_LABEL[x.status] ?? x.status}`);
+        b.addEventListener('click', () => { scene.focus(x.id); select(x.id); });
+        ul.append(el('li', {}, undefined, b));
+      }
+      kids.push(ul);
+    }
+    const mates = l.repo ? [...store.entities.values()].filter((x) => x.id !== e.id && x.kind !== 'subagent' && !x.view?.hidden && x.labels.repo === l.repo && x.status !== 'ended') : [];
+    if (mates.length) {
+      kids.push(el('h3', {}, `Mismo repo · ${mates.length}`));
+      const ul = el('ul');
+      for (const x of mates) {
+        const b = el('button', tid('inspector-mate', { type: 'button', class: 'pa-link' }), `${entityName(x)} · ${STATUS_LABEL[x.status] ?? x.status}${x.labels.branch && x.labels.branch !== l.branch ? ` · ${x.labels.branch}` : ''}`);
         b.addEventListener('click', () => { scene.focus(x.id); select(x.id); });
         ul.append(el('li', {}, undefined, b));
       }
@@ -213,6 +280,10 @@ export function mountInspector(ctx: UiContext, opts: InspectorOptions = {}): () 
     if (e) {
       const el1 = panel.querySelector('[data-testid=inspector-elapsed]');
       if (el1 && e.activity) el1.textContent = fmtDuration(now() - Date.parse(e.activity.since));
+      const el2 = panel.querySelector('[data-testid=inspector-turn-elapsed]');
+      if (el2 && e.turn && !e.turn.until) el2.textContent = fmtDuration(now() - Date.parse(e.turn.since));
+      const el3 = panel.querySelector('[data-testid=inspector-waiting]');
+      if (el3 && e.activity && e.status === 'waiting') el3.textContent = fmtDuration(now() - Date.parse(e.activity.since));
     }
     if (following && selected) scene.focus(selected);
   }

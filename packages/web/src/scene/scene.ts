@@ -17,6 +17,7 @@ import { GAGS } from '../../../../plugins/pop/src/client/index.js';
 import { type ActorData, newActorData } from './actor.js';
 import { Art } from './art.js';
 import { ONE_SHOT, clock, dataOf, registerSceneBehaviors } from './behaviors.js';
+import { drawSocial } from './social.js';
 import { OL, builderLook, drawChar, drawItem, drawItemSeated, lookFor, strHash, type Look } from './chars.js';
 import { EMOJI_DUR, emojiAt, gagAt, allowedGags } from './fun.js';
 import { drawIcon } from './icons.js';
@@ -71,7 +72,7 @@ export class Scene implements SceneApi {
     this.engine = o.engine; this.store = o.store; this.root = o.root;
     this.now = o.now ?? (() => new Date());
     this.art = new Art(this.engine.lib);
-    registerSceneBehaviors();
+    registerSceneBehaviors(o.store);
     this.ctx = { world: this.engine.ecs, width: this.engine.width, height: this.engine.height, dt: 0 };
     this.tip = document.createElement('div');
     Object.assign(this.tip.style, {
@@ -286,7 +287,9 @@ export class Scene implements SceneApi {
       if (idle.length < 2) continue;
       const k = Math.floor(clock.t);
       const A = idle[hash(k * 7) % idle.length]!, da = dataOf(A);
-      const others = idle.filter((b) => b !== A && dataOf(b).slot!.dy === da.slot!.dy);
+      const row = idle.filter((b) => b !== A && dataOf(b).slot!.dy === da.slot!.dy);
+      const mates = row.filter((b) => dataOf(b).ent.labels.repo && dataOf(b).ent.labels.repo === da.ent.labels.repo);
+      const others = mates.length ? mates : row;
       if (!others.length) continue;
       const B = others[hash(k * 13) % others.length]!;
       da.talk = { with: dataOf(B).id, phase: 'walk', x: da.slot!.dx + 3, dir: 1, lt: 0 };
@@ -356,6 +359,17 @@ export class Scene implements SceneApi {
       const greeters = list.filter((d) => d.greet > 1.2);
       for (const d of list) {
         if (!d.slot) continue;
+        const kids = minis.get(d.id);
+        if (kids) {
+          const pk = this.dim(d.id, g);
+          kids.forEach((m, i) => {
+            if (!m.mini) return;
+            const mx = d.slot!.dx + 1 + i * 8, my = d.slot!.dy + 14;
+            if (m.mini.alpha > 0) drawMinis(g, art, mx, my, m.look, 1, t + i, m.mini.alpha);
+            if (m.mini.poof != null) poof(g, mx + 3, my + 4, m.mini.poof);
+          });
+          g.alpha(pk);
+        }
         if (d.talk) { if (d.talk.phase === 'walk' || d.talk.phase === 'talk') drawMonitor(g, d.slot.dx + 13, d.slot.dy - 9, 'off', t, d.seed); continue; }
         if (!d.seat) { if (d.desk >= 1) drawMonitor(g, d.slot.dx + 13, d.slot.dy - 9, 'off', t, d.seed); continue; }
         const pa = this.dim(d.id, g);
@@ -372,13 +386,6 @@ export class Scene implements SceneApi {
         const cx = d.slot.dx + 2, cy = d.slot.dy - 10;
         if (gag && gag.agent === d.id) GAGS[gag.id]?.draw(g, cx, cy, gag.p, t);
         if (emo && emo.agent === d.id) this.drawEmoji(g, cx, cy, emo.id, emo.p, t);
-        const kids = minis.get(d.id);
-        if (kids) kids.forEach((m, i) => {
-          if (!m.mini) return;
-          const mx = d.slot!.dx + 1 + i * 8, my = d.slot!.dy + 14;
-          if (m.mini.alpha > 0) drawMinis(g, art, mx, my, m.look, 1, t + i, m.mini.alpha);
-          if (m.mini.poof != null) poof(g, mx + 3, my + 4, m.mini.poof);
-        });
         if (this.selected === d.id) this.drawMarker(g, cx + 4, cy - 14, t);
         g.alpha(pa);
       }
@@ -394,7 +401,7 @@ export class Scene implements SceneApi {
         } else {
           const speaking = Math.floor(d.talk.lt / 0.9) % 2 === 0;
           drawChar(g, art, x, wy, d.look, { face: speaking && Math.floor(t * 8) % 2 ? 'talk' : null, legs: 0 });
-          if (speaking) talkBubble(g, art, x + 7, wy - 8, t + 3);
+          if (!drawSocial(g, d, x, wy, t) && speaking) talkBubble(g, art, x + 7, wy - 8, t + 3);
         }
         g.alpha(pa);
       }
@@ -444,6 +451,7 @@ export class Scene implements SceneApi {
     // what it is doing, at a glance
     const cat = d.ent.activity?.category;
     if ((st === 'work' || st === 'think' || st === 'wait') && cat && cat !== 'other') drawIcon(g, cat, dx - 6, dy - 16);
+    if (drawSocial(g, d, cx, cy, t)) return;
     if (ex.say) { sayBubble(g, cx + 6, cy - 12, ex.say); return; }
     if (st === 'think') {
       if (!art.draw(g, 'bubble.think', cx + 7, cy - 9, { noAnchor: true, frame: Math.floor(t * 3) % 4 })) {
