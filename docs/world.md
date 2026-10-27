@@ -55,8 +55,10 @@ sin camino.
 1. **Salas** (`makeDraft`): el contenido (zonas, agentes, cápsulas) fija el ancho y el alto de la sala.
 2. **Mantener / reclamar / colocar** (ver más abajo).
 3. **Pasillos** (`routeDoor`): cada puerta, por orden de antigüedad, se une a la red por la ruta más
-   barata (Dijkstra multiobjetivo sobre tiles compartidos o libres): 0,25 en pasillo previo, 0,5 en suelo
-   común, 1 + ruido en hierba, 4 a través del ala de otra oficina (expropiación: la vecina cede el tile).
+   barata (Dijkstra multiobjetivo sobre tiles compartidos o libres): 0,25 en la red y en pasillo previo
+   que siga pegado a la planta (uno que quedó al aire tras una liberación cuesta como hierba), 0,5 en
+   suelo común, hierba 0,4 + ruido si toca la planta (los pasillos **abrazan los muros**, van por dentro)
+   y +0,9 si no, +2,5 en las columnas laterales, 4 a través del ala de otra oficina (expropiación).
    Las rutas se ensanchan a dos tiles (hacia arriba en tramos horizontales, hacia el este en verticales).
    Las oficinas nuevas se colocan y enrutan una a una; un sitio cuyo pasillo no llega a la recepción se
    descarta y el barrido sigue. Lo que fue pasillo y ya no lleva a nadie vuelve a ser suelo libre.
@@ -67,11 +69,19 @@ sin camino.
    área objetivo = sala × (1,25..1,6), tope 40 tiles de ala, alcance 4 tiles de la sala. Una pasada
    **celular** rellena entrantes (un tile libre con ≥ 3 vecinos de la oficina se une). Luego `shapeUp`
    (bloques 2×2, conexión con la sala) y recorte de lo que no se alcanza desde la entrada.
-5. **Bolsas** (`settlePockets`): todo tile libre encerrado (sin salida a la hierba exterior) pasa a suelo
-   común; si solo lo rodea una oficina y ningún pasillo, se lo queda esa oficina (sin huecos inútiles).
+5. **Huella compacta** (`fillInterior`, `settlePockets`): la planta es una sola masa. Un tile de hierba
+   con suelo a ≤ `COMPACT_N` (4) tiles por ambos lados de su fila, o de su columna, está dentro del
+   edificio y pasa a suelo común (se repite hasta que nada cambia: las concavidades profundas se llenan;
+   solo el contorno exterior es orgánico). Lo mismo para todo hueco encerrado. Se hace antes de que
+   crezcan las alas (para que lo reclamen por acreción) y después. Una bolsa rodeada por una sola
+   oficina en crecimiento y sin pasillo se la queda ella (si cabe en su demanda); un tile de bolsa con
+   oficina a ambos lados (costura) va a la vecina con más contacto; lo demás queda como sala de descanso.
+   Las oficinas en pie nunca cambian de forma por esto. Entre dos oficinas que comparten pared vertical
+   (por debajo de ambas fachadas) se abre una **puerta interior** (`innerDoors`) en el tramo más largo.
 6. **Muebles**: los de oficina siguen `furniture.ts`; las bolsas reciben plantas en las esquinas (tiles
    con dos lados de pared) y sofás, mesas o neveras contra una pared (`commonProblem`).
-7. **Exterior**: explanada y camino hasta el borde del mapa; árboles por hash de tile con distancia mínima
+7. **Exterior**: solo naturaleza (ningún prop de interior pisa la hierba: `outdoor` queda vacío);
+   explanada y camino hasta el borde del mapa; árboles por hash de tile con distancia mínima
    3 (muestreo tipo Poisson-disc por "dart throwing" determinista) y densidad modulada por un ruido de
    baja frecuencia (bosquetes); cada sprite comprueba que todos los tiles bajo él son hierba sin camino
    (nada cruza un muro); arbustos y decoración exterior igual.
@@ -90,8 +100,10 @@ Dado el layout anterior:
   hacia fuera, hierba (el edificio crece por el borde). Nunca una sala ajena ni un pasillo. Si no cabe,
   se reubica en el primer hueco libre y sus tiles viejos se derriban.
 - **Liberar**: con ≥ 8 tiles de ancho sobrantes o una fila de mesas menos, la sala se reconstruye más
-  pequeña en el mismo sitio; lo que suelta sigue la regla de las bolsas: encerrado → sala de descanso,
-  en el borde exterior → hierba (sucesión: vuelven los árboles por hash de tile).
+  pequeña en el mismo sitio y conserva solo las alas que su demanda justifica (sala × 0,5; las más
+  lejanas caen primero); lo que suelta sigue la regla de la huella compacta: dentro de la planta →
+  suelo común (sala de descanso), en el borde exterior → hierba, y los pasillos se vuelven a tender
+  abrazando los muros nuevos (sucesión: vuelven los árboles por hash de tile).
 - **Local**: lo no afectado no se mueve; muebles y mesas de oficinas no afectadas quedan quietos; los
   muebles de una oficina empujada se conservan si siguen siendo válidos.
 
@@ -119,7 +131,9 @@ nuevo, zona nueva, baja, oficina nueva, demolición), histéresis, reclamo gradu
 Comprueba: una sola planta (todo lo que no es hierba está 4‑conectado), recepción íntegra con entrada y
 camino, cada puerta sobre un pasillo y alcanzable desde la recepción por pasillos, pasillo de 2 filas
 delante de cada fachada, sala íntegra, tiles = orden de obra, área ≤ sala × 1,9 + 12, bloques 2×2, sin
-islas, sin alas junto a la fachada, muebles válidos (oficina y zona común), mesas dentro de la sala,
+islas, sin alas junto a la fachada, **huella compacta** (ningún tile de hierba con planta a ≤ 4 tiles por
+ambos lados en su fila o columna), puertas interiores entre dos vecinas bajo sus fachadas, exterior sin
+props de interior, muebles válidos (oficina y zona común, nunca sobre el contorno), mesas dentro de la sala,
 1..3 huecos libres, árboles/arbustos/decoración con todo el sprite sobre hierba, estabilidad (lo no
 afectado no se mueve ni cambia de forma, muebles y fachada iguales, nadie cambia de mesa; una vecina
 empujada solo pierde alas), derribo y obra exactamente en los tiles que cambian de dueño, idempotencia de
