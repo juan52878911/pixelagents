@@ -1,0 +1,9 @@
+{
+  "classify": [
+    { "name": "queues are minions", "match": { "kind": "queue" }, "set": { "view.behavior": "minion" } },
+    { "name": "busy queues get the red skin", "match": { "kind": "queue", "metrics.depth": "???*" }, "set": { "view.skin": "red" } },
+    { "name": "group by team, else by host", "match": { "labels.team": "*" }, "set": { "view.group": "{{labels.team}}" } },
+    { "name": "hide probes", "match": { "id": "*:probe-*" }, "set": { "view.hidden": true } }
+  ],
+  "skins": { "red": { "palette": { "B": "#e5533d", "b": "#a8322a" } } }
+}

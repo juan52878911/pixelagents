@@ -1,0 +1,20 @@
+{
+  "plugins": ["@pixelagents/plugin-map"],
+  "inputs": [
+    {
+      "id": "ci",
+      "type": "poll",
+      "url": "http://127.0.0.1:9000/jobs/latest",
+      "everySec": 10,
+      "adapter": "map",
+      "options": {
+        "entity": "job:{{job.id}}",
+        "kind": { "fromField": "status", "map": { "start": "session.start", "done": "turn.end", "*": "heartbeat" } },
+        "labels": { "name": "{{job.name}} #{{job.id}}", "host": "ci" },
+        "attrs": { "duration_s": "{{elapsed}}" },
+        "ts": "{{at}}",
+        "when": { "job.name": "build*" }
+      }
+    }
+  ]
+}
