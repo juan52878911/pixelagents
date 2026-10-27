@@ -1,4 +1,4 @@
-export { generateWorld, makeLobby, commonProblem, LOBBY_TY, INSIDE_R0 } from './generate.js';
+export { generateWorld, makeLobby, commonProblem, LOBBY_TY, INSIDE_R0, COMPACT_N } from './generate.js';
 export { relayout } from './stable.js';
 export { registerStrategy, getStrategy, strategyNames } from './strategies.js';
 export type { StrategyFn, GrowCtx, OfficeDraft } from './strategies.js';

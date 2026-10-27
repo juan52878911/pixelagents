@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COMMON, GY, TS, commonProblem, generateWorld, getStrategy, isHall, placementProblem, registerStrategy, relayout, signParts, strategyNames, walkableFn,
+  COMMON, COMPACT_N, GY, INSIDE_R0, TS, commonProblem, generateWorld, getStrategy, isHall, placementProblem, registerStrategy, relayout, signParts, strategyNames, walkableFn,
   type DecorItem, type GroupInput, type OfficeGeom, type OfficeLayout, type WorldInput, type WorldLayout,
 } from '../src/world/index.js';
 
@@ -140,6 +140,20 @@ function check(w: WorldLayout): string[] {
     if (!o.changed && o.doneAt >= 0) errs.push(nm + ' obra sin cambio');
   });
   if (!connected(w)) errs.push('puertas desconectadas de la recepcion');
+  // compact footprint: no grass with floor on both sides (row or column) within COMPACT_N tiles
+  const span = (c: number, r: number, dc: number, dr: number): boolean => { for (let i = 1; i <= COMPACT_N; i++) if (at(c + dc * i, r + dr * i) !== -1) return true; return false; };
+  for (let r = INSIDE_R0; r < w.rows - 1; r++) for (let c = 1; c < w.cols - 1; c++) {
+    if (at(c, r) !== -1) continue;
+    if ((span(c, r, -1, 0) && span(c, r, 1, 0)) || (span(c, r, 0, -1) && span(c, r, 0, 1))) { errs.push('hierba dentro de la planta'); break; }
+  }
+  // doors on shared walls: between two different offices, below both facades
+  for (const d of w.innerDoors) {
+    const a = at(d.c, d.r), b = at(d.c + 1, d.r);
+    if (a !== d.a || b !== d.b || a < 0 || b < 0 || a === b) errs.push('puerta interior sin dos vecinas');
+    else if (d.r < Math.max(w.offices[a]!.ty, w.offices[b]!.ty) + 2) errs.push('puerta interior en la fachada');
+  }
+  // outdoors: nature only
+  if (w.outdoor.length) errs.push('decoracion de interior en la hierba');
   // break pockets: furniture on shared non-corridor tiles, against a wall, no overlap
   for (const d of w.commonDecor) { const p = commonProblem(own, corr, d, w.commonDecor); if (p) errs.push('mueble comun ' + d.id + ': ' + p); }
   // outdoors: paths, trees, bushes and decor on grass only, never over a wall

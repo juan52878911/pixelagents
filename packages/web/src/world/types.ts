@@ -164,6 +164,8 @@ export interface WorldLayout {
   common: TileKey[];
   /** furniture of the break pockets (plants, sofas…) */
   commonDecor: PlacedDecor[];
+  /** doors on the wall two neighbouring offices share: between tile (c, r) of office a and (c + 1, r) of office b */
+  innerDoors: { c: number; r: number; a: number; b: number }[];
   /** forecourt in front of the entrance (3×3) */
   plaza: Tile;
   plazaOk: boolean;

@@ -19,7 +19,7 @@ import type { Rng } from './rng.js';
 import { SEASONS, seasonFromSeed } from './seasons.js';
 import { getStrategy, POOL_LAB, POOL_OFFICE } from './strategies.js';
 import type { GrowCtx } from './strategies.js';
-import { accrete, smooth, type Territory } from './territory.js';
+import { accrete, hallDist, smooth, type Territory } from './territory.js';
 import { COMMON, DEFAULT_COLS, GY, TS } from './types.js';
 import type {
   Crew, DecorItem, FloorKind, GroupInput, Lobby, OfficeLayout, PlacedDecor, RevealItem, Slot, Tile, WorldInput, WorldLayout, ZoneLayout,
@@ -42,6 +42,8 @@ export const INSIDE_R0 = LOBBY_TY + 2;
 const OFFICE_TY0 = LOBBY_TY + 4; // first row a hall may start on (its door strip sits on the lobby floor rows)
 const STRIP = 2; // corridor rows above every hall (door strip)
 const WING_REACH = 4; // max Chebyshev distance a wing may reach from its hall
+/** a grass tile with floor this close on both sides (row or column) is inside the building */
+export const COMPACT_N = 4;
 const DECO_SIZE: Record<string, [number, number]> = {
   plant: [8, 12], sofa: [34, 11], cooler: [7, 17], table: [16, 10], shelf: [12, 16], lamp: [7, 16],
 };
@@ -280,6 +282,11 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
       const oldHall = (c: number, r: number): boolean => c >= p.tx && c < p.tx + p.tw && r >= p.ty && r < p.ty + p.th;
       setHall(o, tx, ty, o.needTw, o.needTh);
       dropTiles(oi, (c, r) => !oldHall(c, r) || inHallOf(oi, c, r));
+      if (!wider) {
+        // a smaller hall keeps only the wings its new demand justifies: the farthest go first
+        const wings = tilesOf(own, oi).filter(([c, r]) => !inHallOf(oi, c, r)).sort((p, q) => hallDist(o, q[0], q[1]) - hallDist(o, p[0], p[1]) || q[1] - p[1] || q[0] - p[0]);
+        for (let i = 0; i < wings.length - Math.round(o.needTw * o.needTh * 0.5); i++) { const [c, r] = wings[i]!; own[r]![c] = -1; }
+      }
       if (tx === p.tx && o.needTw >= p.tw) { o.door = p.door; o.doorTile = p.doorTile; o.entry = p.entry; }
       claimHall(o, oi);
       ok = true;
@@ -309,7 +316,15 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
   const passable = (c: number, r: number): boolean => { const v = own[r]![c]!; return routable(c, r) && (v === -1 || v === COMMON || isWing(c, r)); };
   const cost = (k: number): number => {
     const c = k % cols, r = Math.floor(k / cols), v = own[r]![c]!;
-    return prevCorr.has(k) || network.has(k) ? 0.25 : v === COMMON ? 0.5 : v >= 0 ? 4 : 1 + tileNoise(seedN, k);
+    const side = c < MARGIN || c >= cols - MARGIN ? 2.5 : 0;
+    if (network.has(k)) return 0.25;
+    if (v >= 0) return 4;
+    // a corridor hugs the floor: an old corridor left out in the open after a release is no longer cheap
+    let hug = false;
+    for (const [dc, dr] of D4) { const n = ownerAt(own, c + dc, r + dr); if (n >= 0 || (n === COMMON && !prevCorr.has(K(c + dc, r + dr)))) { hug = true; break; } }
+    if (prevCorr.has(k)) return hug ? 0.25 : 1.2 + side;
+    if (v === COMMON) return 0.5;
+    return 0.4 + side + tileNoise(seedN, k) * 0.8 + (hug ? 0 : 0.9);
   };
   /** tiles a corridor could reach from the network right now (placement pre-check) */
   const reachableNow = (): Set<number> => {
@@ -386,6 +401,32 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
   for (const o of offs) maxBottom = Math.max(maxBottom, o.ty + o.th);
   ensureRows(Math.max(38, maxBottom + 12));
   const claimable = (c: number, r: number, oi: number): boolean => inside(c, r) && r >= offs[oi]!.ty + 2 && !structural.has(K(c, r)) && spare(c, r);
+  /**
+   * Compact footprint: a grass tile with floor within `COMPACT_N` tiles on both sides of its row, or
+   * both sides of its column, is inside the building and becomes shared floor. Repeats until stable,
+   * so deep concavities fill up; only the outer contour stays organic.
+   */
+  const fillInterior = (): number => {
+    let total = 0;
+    const floor = (c: number, r: number): boolean => ownerAt(own, c, r) !== -1;
+    const span = (c: number, r: number, dc: number, dr: number): boolean => { for (let i = 1; i <= COMPACT_N; i++) if (floor(c + dc * i, r + dr * i)) return true; return false; };
+    const inner = (c: number, r: number): boolean => own[r]![c] === -1 && ((span(c, r, -1, 0) && span(c, r, 1, 0)) || (span(c, r, 0, -1) && span(c, r, 0, 1)));
+    const q: Tile[] = [];
+    for (let r = INSIDE_R0; r < rows - 1; r++) for (let c = 1; c < cols - 1; c++) if (inner(c, r)) q.push([c, r]);
+    // every tile added may make its row/column neighbours within reach interior too
+    for (let h = 0; h < q.length; h++) {
+      const [c, r] = q[h]!;
+      if (own[r]![c] !== -1) continue;
+      own[r]![c] = COMMON; total++;
+      for (let i = -COMPACT_N; i <= COMPACT_N; i++) {
+        if (i === 0) continue;
+        if (c + i >= 1 && c + i < cols - 1 && inner(c + i, r)) q.push([c + i, r]);
+        if (r + i >= INSIDE_R0 && r + i < rows - 1 && inner(c, r + i)) q.push([c, r + i]);
+      }
+    }
+    return total;
+  };
+  fillInterior();
   const wanted = (input.strategies ?? []).filter((s) => getStrategy(s));
   const terr: Territory[] = [];
   offs.forEach((o, oi) => {
@@ -408,15 +449,32 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
     const comp = labelGrass(own, cols, rows);
     const outside = new Set<number>();
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (isOutside(c, r) && comp[K(c, r)]! >= 0) outside.add(comp[K(c, r)]!);
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const id = comp[K(c, r)]!; if (id >= 0 && !outside.has(id)) own[r]![c] = COMMON; }
+    fillInterior();
+    // pockets = components of shared non-structural floor
+    const pk = labelGrass(own, cols, rows, (v) => v === COMMON);
     const byComp = new Map<number, Tile[]>();
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const id = comp[K(c, r)]!; if (id >= 0 && !outside.has(id)) { const l = byComp.get(id) ?? []; l.push([c, r]); byComp.set(id, l); } }
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const id = pk[K(c, r)]!; if (own[r]![c] === COMMON && !structural.has(K(c, r))) { const l = byComp.get(id) ?? []; l.push([c, r]); byComp.set(id, l); } }
     const touched: number[] = [];
     for (const tiles of byComp.values()) {
       const owners = new Set<number>();
       let corridor = false;
-      for (const [c, r] of tiles) for (const [dc, dr] of D4) { const v = ownerAt(own, c + dc, r + dr); if (v >= 0) owners.add(v); else if (v === COMMON) corridor = true; }
-      if (giveBack && !corridor && owners.size === 1) { const oi = [...owners][0]!; for (const [c, r] of tiles) own[r]![c] = oi; touched.push(oi); }
-      else for (const [c, r] of tiles) own[r]![c] = COMMON;
+      for (const [c, r] of tiles) for (const [dc, dr] of D4) { const v = ownerAt(own, c + dc, r + dr); if (v >= 0) owners.add(v); else if (v === COMMON && structural.has(K(c + dc, r + dr))) corridor = true; }
+      // only offices still growing take pocket tiles (standing ones never change shape on their own), never beside a facade
+      const may = (oi: number, r: number): boolean => offs[oi]!.grow && r >= offs[oi]!.ty + 2;
+      if (giveBack && !corridor && owners.size === 1) {
+        const oi = [...owners][0]!;
+        const o = offs[oi]!, cap = o.tw * o.th * 1.6 - tilesOf(own, oi).length;
+        if (tiles.length <= cap && tiles.every(([, r]) => may(oi, r))) { for (const [c, r] of tiles) own[r]![c] = oi; touched.push(oi); continue; }
+      }
+      // a thin seam between offices (a tile walled on two opposite sides) is no room: it goes to a neighbour
+      if (giveBack) for (const [c, r] of tiles) {
+        if (!((ownerAt(own, c - 1, r) >= 0 && ownerAt(own, c + 1, r) >= 0) || (ownerAt(own, c, r - 1) >= 0 && ownerAt(own, c, r + 1) >= 0))) continue;
+        const n = new Map<number, number>();
+        for (const [dc, dr] of D4) { const v = ownerAt(own, c + dc, r + dr); if (v >= 0 && may(v, r)) n.set(v, (n.get(v) ?? 0) + 1); }
+        const pick = [...n.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0])[0];
+        if (pick) { own[r]![c] = pick[0]; touched.push(pick[0]); }
+      }
     }
     return touched;
   };
@@ -429,6 +487,29 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
     resize(own, cols, rows);
   }
   const tilesByOffice = offs.map((_, oi) => tilesOf(own, oi));
+  const innerDoors: WorldLayout['innerDoors'] = [];
+  {
+    const runs = new Map<string, Tile[]>();
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols - 1; c++) {
+      const a = own[r]![c]!, b = own[r]![c + 1]!;
+      if (a < 0 || b < 0 || a === b || r < Math.max(offs[a]!.ty, offs[b]!.ty) + 2) continue;
+      if (ownerAt(own, c, r - 1) !== a || ownerAt(own, c + 1, r - 1) !== b) continue; // never under a low wall
+      const key = a + '/' + b + '/' + c;
+      const l = runs.get(key) ?? []; l.push([c, r]); runs.set(key, l);
+    }
+    const best = new Map<string, Tile[]>();
+    for (const [key, tiles] of runs) {
+      const pair = key.slice(0, key.lastIndexOf('/'));
+      const cur = best.get(pair);
+      if (!cur || tiles.length > cur.length) best.set(pair, tiles);
+    }
+    for (const [pair, tiles] of best) {
+      if (tiles.length < 2) continue;
+      const [a, b] = pair.split('/').map(Number) as [number, number];
+      const t = tiles[tiles.length >> 1]!;
+      innerDoors.push({ c: t[0], r: t[1], a, b });
+    }
+  }
   const corridor: number[] = [], common: number[] = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (own[r]![c] === COMMON) { const k = K(c, r); common.push(k); if (structural.has(k)) corridor.push(k); }
 
@@ -475,21 +556,8 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
   }
   const floorDecor = input.decor.filter((d) => d.place === 'floor');
   const wallDecor = input.decor.filter((d) => d.place === 'wall');
+  // outdoors there is nature only: indoor props never stand on the grass
   const outdoor: PlacedDecor[] = [];
-  if (floorDecor.length) {
-    // a piece beside the forecourt (never in front of the door)
-    const d = floorDecor[th(3, plaza[0], plaza[1]) % floorDecor.length]!;
-    const y = GY + (plaza[1] + 3) * TS - d.h;
-    for (const x of [plaza[0] * TS - d.w - 4, (plaza[0] + 3) * TS + 4]) if (clear(x - 1, y - 1, d.w + 2, d.h + 2)) { outdoor.push({ id: d.id, x, y, w: d.w, h: d.h }); break; }
-  }
-  if (floorDecor.length) for (let r = 2; r < rows - 2 && outdoor.length < 4; r++) for (let c = 1; c < cols - 3 && outdoor.length < 4; c++) {
-    const h = th(4, c, r);
-    if (h % 150 !== 0) continue;
-    const d = floorDecor[Math.floor(h / 150) % floorDecor.length]!;
-    const x = c * TS, y = GY + r * TS + 8 - d.h;
-    if (!clear(x - 2, y - 2, d.w + 4, d.h + 4) || trees.some((q) => Math.abs(q.c - c) < 3 && Math.abs(q.r - r) < 3)) continue;
-    outdoor.push({ id: d.id, x, y, w: d.w, h: d.h });
-  }
 
   // ---- finish offices: wall features, furniture (standing offices keep what still stands) ----
   const features = offs.map((o, oi): { windows: number[]; poster: number | null; wallDeco: PlacedDecor[]; decor: PlacedDecor[] } => {
@@ -600,7 +668,7 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
     office: c.id, index: b, keys: c.order.filter((_, i) => i % 2 === b).map((tl, i) => ({ t: c.start + ((i * 2 + b) / c.order.length) * c.dur, c: tl[0], r: tl[1] })),
   })));
   return {
-    seed: input.seed, season, cols, rows, own, offices, lobby, corridor, common, commonDecor, plaza, plazaOk, path: ptiles, trees, bushes, outdoor,
+    seed: input.seed, season, cols, rows, own, offices, lobby, corridor, common, commonDecor, innerDoors, plaza, plazaOk, path: ptiles, trees, bushes, outdoor,
     build, epoch, order: orderHints,
   };
 }

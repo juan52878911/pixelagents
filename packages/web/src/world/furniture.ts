@@ -11,7 +11,7 @@
  * row) is not on a wall, lane, desk or gauge tile, it keeps 2 px from other items, it touches a
  * wall (back, side or bottom), and every walkable tile stays reachable from the entry tile.
  */
-import { type Own, N, edgeMask, ownerAt, reach } from './grid.js';
+import { type Own, E, N, S, W, edgeMask, ownerAt, reach } from './grid.js';
 import type { Rng } from './rng.js';
 import { GY, TS, type PlacedDecor, type Tile } from './types.js';
 
@@ -96,6 +96,13 @@ export function placementProblem(own: Own, g: OfficeGeom, d: PlacedDecor, others
     if (isFacade(g, c, r) || isLane(g, c, r) || isDeskTile(g, c, r) || isGauge(g, c, r) || isRack(g, c, r)) return 'sobre fachada, pasillo, mesas o termometro';
   }
   for (let c = f.c0; c <= f.c1; c++) if (isWallTile(own, g, c, f.r)) return 'sobre un muro';
+  // the sprite never covers the outline of an open edge (1 px at the tile border)
+  for (let r = r0; r <= f.r; r++) for (let c = f.c0; c <= f.c1; c++) {
+    const m = edgeMask(own, c, r, g.oi);
+    if (m & W && d.x < c * TS + 1) return 'pisa el muro';
+    if (m & E && d.x + d.w > c * TS + TS - 1) return 'pisa el muro';
+    if (m & S && d.y + d.h > GY + r * TS + TS - 1) return 'pisa el muro';
+  }
   if (isHall(g, f.c0, f.r) && !isItemBand(g, f.c0, f.r)) return 'fuera de la banda de muebles';
   for (const o of others) {
     if (o === d) continue;

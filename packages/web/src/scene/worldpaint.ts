@@ -221,6 +221,13 @@ export function paintWorld(w: WorldLayout, art: Art): WorldArt {
       if (m & EB && !mine(at(c + 1, r))) g.rect(x + 7, y, 1, 8, PAL.outline);
     }
     for (let i = 0; i < o.racks; i++) drawRack(g, art, o.x + 6 + i * 16, o.y + 20);
+  });
+  // doors on shared walls: a narrow frame straddling the line between two neighbours
+  for (const d of w.innerDoors) {
+    const x = (d.c + 1) * TS - 2, y = GY + d.r * TS - 3;
+    g.rect(x, y, 4, 12, PAL.outline); g.rect(x + 1, y + 1, 2, 10, '#7a5234'); g.rect(x + 1, y + 1, 2, 1, '#9a6a44'); g.px(x + 2, y + 6, '#f2c14e');
+  }
+  w.offices.forEach((o) => {
     const gx = o.x + o.w - 24;
     g.rect(gx + 1, o.y + 58, 9, 2, '#3a3346');
     g.rect(gx - 2, o.y + 87, 19, 3, '#3a3346'); g.rect(gx - 2, o.y + 87, 19, 1, '#4d4459');
