@@ -1,0 +1,7 @@
+{
+  "plugins": ["./examples/hello-plugin/src/index.ts", "@pixelagents/plugin-effects"],
+  "inputs": [
+    { "id": "hello", "type": "poll", "command": "node", "args": ["examples/hello-plugin/bin/sample.mjs"], "everySec": 5, "adapter": "hello" }
+  ],
+  "effects": [{ "layer": "world", "filter": "hello-sepia", "params": { "amount": 0.7 } }]
+}
