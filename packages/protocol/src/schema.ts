@@ -42,6 +42,10 @@ export const CONFIG_SCHEMA = {
           { title: 'Stream from a command', type: 'object', required: ['id', 'type', 'command', 'adapter'], additionalProperties: false, properties: { ...inputBase, type: { const: 'command' }, command: str, args: { type: 'array', items: str }, restartSec: num } },
           { title: 'Poll a command or URL', type: 'object', required: ['id', 'type', 'everySec', 'adapter'], additionalProperties: false, properties: { ...inputBase, type: { const: 'poll' }, command: str, args: { type: 'array', items: str }, url: str, everySec: { type: 'number', minimum: 1 } } },
           { title: 'Another pixelagents hub', type: 'object', required: ['id', 'type', 'url'], additionalProperties: false, properties: { id: str, enabled: bool, type: { const: 'hub' }, url: str, token: str } },
+          {
+            title: 'Input type from a plugin', type: 'object', required: ['id', 'type'], additionalProperties: true,
+            properties: { ...inputBase, type: { type: 'string', not: { enum: ['http', 'file', 'command', 'poll', 'hub'] } } },
+          },
         ],
       },
     },

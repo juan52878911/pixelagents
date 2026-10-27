@@ -38,3 +38,13 @@ describe('rules', () => {
     expect(c.plugins).toEqual([]);
   });
 });
+
+describe('plugin input types', () => {
+  it('accepts an input type registered by a plugin and still rejects broken built-ins', () => {
+    const validate = new Ajv2020({ strict: false }).compile(CONFIG_SCHEMA);
+    const ok = { ...DEFAULT_CONFIG, inputs: [{ id: 'load', type: 'host-local', adapter: 'host-stats', everySec: 15, options: { host: 'laptop' } }] };
+    expect(validate(ok), JSON.stringify(validate.errors)).toBe(true);
+    const bad = { ...DEFAULT_CONFIG, inputs: [{ id: 'f', type: 'file', adapter: 'x' }] };
+    expect(validate(bad)).toBe(false);
+  });
+});
