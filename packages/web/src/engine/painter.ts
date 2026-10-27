@@ -32,6 +32,8 @@ export class BufferPainter implements Painter {
   readonly data: Uint8ClampedArray;
   /** Set by every draw call; the owner uploads and clears it. */
   dirty = false;
+  /** Optional clip rectangle [x0, y0, x1, y1) applied to every draw call; null = whole buffer. */
+  clipRect: [number, number, number, number] | null = null;
   private a = 1;
 
   constructor(readonly width: number, readonly height: number) {
@@ -81,8 +83,15 @@ export class BufferPainter implements Painter {
     }
   }
 
+  /** Restricts drawing to a rectangle (null clears). Returns the previous clip. */
+  clip(r: [number, number, number, number] | null): [number, number, number, number] | null {
+    const p = this.clipRect; this.clipRect = r; return p;
+  }
+
   private put(x: number, y: number, r: number, g: number, b: number, a255: number): void {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+    const cr = this.clipRect;
+    if (cr && (x < cr[0] || y < cr[1] || x >= cr[2] || y >= cr[3])) return;
     const sa = (a255 / 255) * this.a;
     if (sa <= 0) return;
     const i = (y * this.width + x) * 4;

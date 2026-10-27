@@ -36,7 +36,7 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errors.push(m.text()); });
-  await page.goto(`http://127.0.0.1:${PORT}/?n=${N}`);
+  await page.goto(`http://127.0.0.1:${PORT}/demo.html?n=${N}`);
   await page.waitForFunction(() => window.__pa && window.__pa.engine.ecs.size > 0, null, { timeout: 20000 });
   await page.waitForTimeout(3000); // warm-up (shader compile, JIT)
   await page.evaluate(() => {
