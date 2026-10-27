@@ -51,7 +51,8 @@ export function glFilter(fragment: string, uniforms: Record<string, number> = {}
   const u: Record<string, { value: number; type: 'f32' }> = {};
   for (const k in uniforms) u[k] = { value: uniforms[k]!, type: 'f32' };
   return new Filter({
-    glProgram: GlProgram.from({ vertex: FILTER_VERT, fragment, name }),
+    // The vertex stage is highp; uniforms shared with the fragment stage must match its precision.
+    glProgram: GlProgram.from({ vertex: FILTER_VERT, fragment: fragment.includes('precision') ? fragment : 'precision highp float;\n' + fragment, name }),
     resources: { pxUniforms: new UniformGroup(u) },
   });
 }

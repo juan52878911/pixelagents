@@ -45,7 +45,7 @@ async function main(): Promise<void> {
   engine.applyEffects(q.get('fx') === '0' ? [] : [
     { layer: 'world', filter: 'tint', params: { r: 1, g: 0.97, b: 0.92 } },
     { layer: 'actors', filter: 'pixelate', params: { size: 1 } },
-    { layer: 'screen', filter: 'vignette', params: { strength: 0.8 } },
+    { layer: 'world', filter: 'vignette', params: { strength: 0.8 } },
   ]);
 
   const ctx: BehaviorContext = { world: engine.ecs, width: 480, height: 328, dt: 0 };
