@@ -8,7 +8,7 @@ import { BufferPainter } from '../engine/painter.js';
 import { signParts } from '../world/generate.js';
 import { E as EB, N as NB, S as SB, W as WB, edgeMask } from '../world/grid.js';
 import { SEASONS, type SeasonPalette } from '../world/seasons.js';
-import { GY, TS, type FloorKind, type OfficeLayout, type WorldLayout } from '../world/types.js';
+import { GY, TS, type FloorKind, type Lobby, type OfficeLayout, type WorldLayout } from '../world/types.js';
 import type { Art } from './art.js';
 import { OL } from './chars.js';
 import { drawRack, hash } from './props.js';
@@ -23,6 +23,10 @@ export const PAL = {
   signLabel: '#ffe9a8',
   signKind: '#8be9fd',
   gauge: '#8a8399',
+  wallCommon: '#d9cfbf',
+  floorCommon: '#cfc6b4',
+  floorCommonD: '#c2b9a6',
+  floorCommonL: '#dbd3c2',
 };
 
 export interface WorldArt {
@@ -97,6 +101,29 @@ function drawTree(g: BufferPainter, art: Art, tr: { x: number; y: number; kind: 
   g.rect(tr.x + 5, tr.y + 10, 4, 7, '#6b4329'); g.rect(tr.x + 2, tr.y, 10, 11, S.c);
 }
 
+/** Shared floor: pale stone slabs with a faint joint grid and a speck. */
+function commonFloor(g: BufferPainter, x: number, y: number, h: number): void {
+  g.rect(x, y, 8, 8, PAL.floorCommon);
+  g.rect(x, y, 8, 1, PAL.floorCommonL); g.rect(x, y, 1, 8, PAL.floorCommonL);
+  g.rect(x, y + 7, 8, 1, PAL.floorCommonD); g.rect(x + 7, y, 1, 8, PAL.floorCommonD);
+  if (h % 5 === 0) g.px(x + 2 + (h >>> 3) % 4, y + 2 + (h >>> 6) % 4, PAL.floorCommonD);
+}
+
+/** The reception: wall band with the sign and the entrance door, a desk and a plant on its floor. */
+function drawLobby(g: BufferPainter, art: Art, lb: Lobby): void {
+  g.rect(lb.x, lb.y, lb.w, 16, PAL.wallCommon);
+  g.rect(lb.x, lb.y + 11, lb.w, 4, '#c9bda8');
+  g.rect(lb.x, lb.y + 15, lb.w, 1, PAL.wallFoot);
+  const label = 'RECEPCION', lw = measure(label, FONT_4x6) + 6;
+  g.rect(lb.x + 3, lb.y + 3, lw, 10, PAL.signBox); g.rect(lb.x + 4, lb.y + 4, lw - 2, 8, PAL.signBg);
+  g.text(label, lb.x + 6, lb.y + 5, PAL.signLabel, 1, FONT_4x6);
+  const dx = lb.x + lb.door;
+  if (!art.draw(g, 'prop.door.closed', dx, lb.y + 1, { noAnchor: true })) { g.rect(dx, lb.y + 1, 12, 15, '#4a3322'); g.rect(dx + 1, lb.y + 2, 10, 13, '#7a5234'); }
+  g.rect(dx - 1, lb.y + 16, 14, 2, '#b9b2a6');
+  if (!art.draw(g, 'prop.desk', lb.x + 6, lb.y + 19, { noAnchor: true })) g.rect(lb.x + 6, lb.y + 19, 24, 10, '#8a5a3a');
+  if (!art.draw(g, 'prop.plant', lb.x + lb.w - 12, lb.y + 18, { noAnchor: true })) g.rect(lb.x + lb.w - 12, lb.y + 18, 8, 12, '#3f8a3a');
+}
+
 /** Paints the whole static world. */
 export function paintWorld(w: WorldLayout, art: Art): WorldArt {
   const { width: W, height: H } = worldSize(w);
@@ -132,21 +159,50 @@ export function paintWorld(w: WorldLayout, art: Art): WorldArt {
     if (!isP(c + 1, r)) g.rect(x + 7, y, 1, 8, '#a8946a');
     g.px(x + 1 + (h % 5), y + 2 + ((h >>> 4) % 4), '#b5a078'); g.px(x + 2 + ((h >>> 7) % 4), y + 1 + ((h >>> 10) % 5), '#d8c8a0');
   }
-  w.offices.forEach((o, oi) => {
+  // ---- the building: shared floor first, then every office floor, then walls, shadows and outlines ----
+  const own = w.own;
+  const at = (c: number, r: number): number => (r >= 0 && r < rows && c >= 0 && c < cols ? own[r]![c]! : -1);
+  const lb = w.lobby;
+  const lobbyWall = (c: number, r: number): boolean => c >= lb.tx && c < lb.tx + lb.tw && r >= lb.ty && r < lb.ty + 2;
+  for (const k of w.common) {
+    const c = k % cols, r = (k / cols) | 0, x = c * TS, y = GY + r * TS;
+    commonFloor(g, x, y, hash(k * 17 + seedN));
+  }
+  w.offices.forEach((o) => {
     const tiles = o.tiles;
     if (!tiles.length) return;
-    const masks = tiles.map(([c, r]) => edgeMask(w.own, c, r, oi));
-    for (const [i, [c, r]] of tiles.entries()) {
-      const x = c * TS, y = GY + r * TS, m = masks[i]!;
-      if (m & SB) g.rect(x + 2, y + 8, 8, 3, PAL.shadow);
-      if (m & EB) g.rect(x + 8, y + 3, 2, 8, PAL.shadow);
-    }
     let x0 = W, y0 = H, x1 = 0, y1 = 0;
     for (const [c, r] of tiles) { x0 = Math.min(x0, c * TS); y0 = Math.min(y0, GY + r * TS); x1 = Math.max(x1, c * TS + TS); y1 = Math.max(y1, GY + r * TS + TS); }
     // floor pattern clipped to the office tiles
     const fp = new BufferPainter(x1 - x0, y1 - y0);
     floorPattern(fp, o.floor, 0, 0, x1 - x0, y1 - y0);
     for (const [c, r] of tiles) blit(fp, c * TS - x0, GY + r * TS - y0, g, c * TS, GY + r * TS, TS, TS);
+  });
+  // shadows fall on the shared floor and the grass only (never on a neighbour's floor)
+  const soft = (v: number): boolean => v < 0;
+  for (const o of w.offices) for (const [c, r] of o.tiles) {
+    const x = c * TS, y = GY + r * TS;
+    if (soft(at(c, r + 1))) g.rect(x + 2, y + 8, 8, 3, PAL.shadow);
+    if (soft(at(c + 1, r))) g.rect(x + 8, y + 3, 2, 8, PAL.shadow);
+  }
+  // the outer wall of the building: a low wall on shared tiles whose back is open, the lobby front
+  for (const k of w.common) {
+    const c = k % cols, r = (k / cols) | 0, x = c * TS, y = GY + r * TS;
+    if (lobbyWall(c, r)) continue;
+    if (at(c, r - 1) === -1) { g.rect(x, y, 8, 7, PAL.wallCommon); g.rect(x, y + 6, 8, 1, PAL.wallFoot); }
+  }
+  drawLobby(g, art, lb);
+  for (const k of w.common) {
+    const c = k % cols, r = (k / cols) | 0, x = c * TS, y = GY + r * TS;
+    if (at(c, r - 1) === -1) g.rect(x, y, 8, 1, PAL.outline);
+    if (at(c, r + 1) === -1) g.rect(x, y + 7, 8, 1, PAL.outline);
+    if (at(c - 1, r) === -1) g.rect(x, y, 1, 8, PAL.outline);
+    if (at(c + 1, r) === -1) g.rect(x + 7, y, 1, 8, PAL.outline);
+  }
+  w.offices.forEach((o, oi) => {
+    const tiles = o.tiles;
+    if (!tiles.length) return;
+    const masks = tiles.map(([c, r]) => edgeMask(w.own, c, r, oi));
     drawWall(g, o);
     const hall = (c: number, r: number): boolean => c >= o.tx && c < o.tx + o.tw && r >= o.ty && r < o.ty + o.th;
     for (const [i, [c, r]] of tiles.entries()) {
@@ -155,17 +211,19 @@ export function paintWorld(w: WorldLayout, art: Art): WorldArt {
       if (!hall(c, r) && m & NB) { g.rect(x, y, 8, 7, o.wall); g.rect(x, y + 6, 8, 1, PAL.wallFoot); }
       if (o.floor === 'lab' && m & SB) for (let rr = 5; rr < 8; rr++) for (let xx = 0; xx < 8; xx++) g.px(x + xx, y + rr, ((x + xx + rr) >> 2) & 1 ? '#f2c14e' : OL);
     }
+    // outline: toward the shared floor and the grass always; a shared wall with a neighbour is one line
+    const mine = (v: number): boolean => v === oi || (v >= 0 && v < oi);
     for (const [i, [c, r]] of tiles.entries()) {
       const x = c * TS, y = GY + r * TS, m = masks[i]!;
-      if (m & NB) g.rect(x, y, 8, 1, PAL.outline);
-      if (m & SB) g.rect(x, y + 7, 8, 1, PAL.outline);
-      if (m & WB) g.rect(x, y, 1, 8, PAL.outline);
-      if (m & EB) g.rect(x + 7, y, 1, 8, PAL.outline);
+      if (m & NB && !mine(at(c, r - 1))) g.rect(x, y, 8, 1, PAL.outline);
+      if (m & SB && !mine(at(c, r + 1))) g.rect(x, y + 7, 8, 1, PAL.outline);
+      if (m & WB && !mine(at(c - 1, r))) g.rect(x, y, 1, 8, PAL.outline);
+      if (m & EB && !mine(at(c + 1, r))) g.rect(x + 7, y, 1, 8, PAL.outline);
     }
     for (let i = 0; i < o.racks; i++) drawRack(g, art, o.x + 6 + i * 16, o.y + 20);
     const gx = o.x + o.w - 24;
-    g.rect(gx + 1, o.y + 57, 9, 2, '#3a3346');
-    g.rect(gx - 2, o.y + 81, 19, 3, '#3a3346'); g.rect(gx - 2, o.y + 81, 19, 1, '#4d4459');
+    g.rect(gx + 1, o.y + 58, 9, 2, '#3a3346');
+    g.rect(gx - 2, o.y + 87, 19, 3, '#3a3346'); g.rect(gx - 2, o.y + 87, 19, 1, '#4d4459');
     g.text('CARGA', gx - 3, o.y + 19, PAL.gauge);
   });
   const ground = new BufferPainter(W, H);

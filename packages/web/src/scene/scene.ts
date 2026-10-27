@@ -312,6 +312,7 @@ export class Scene implements SceneApi {
     const tb = this.tb;
     const pendingOut = new Set(L.build.reveal.filter((r) => r.kind === 'outdoor' && r.time > tb).map((r) => r.x + ',' + r.y));
     for (const d of L.outdoor) if (!pendingOut.has(d.x + ',' + d.y)) drawDeco(g, art, d, t);
+    if (tb >= L.build.buildEnd) for (const d of L.commonDecor) drawDeco(g, art, d, t);
     const byOffice = new Map<OfficeLayout, ActorData[]>();
     const minis = new Map<string, ActorData[]>();
     for (const a of this.actors.values()) {
@@ -537,14 +538,15 @@ export class Scene implements SceneApi {
       const busy = present.filter((d) => d.seat === 'work' || d.seat === 'think' || d.pod?.st === 'run').length;
       load = present.length ? (busy / present.length) * 100 : 0;
     }
+    // gauge column (24 px): CARGA 19..24, thermometer 27..57, level 61..65, coin 70..79, pig 80..88, cost 91..96
     const gx = o.x + o.w - 24, lvl = Math.max(1, Math.min(99, Math.round(load + Math.sin(t * 0.7 + oi) * 2)));
-    drawThermo(g, gx + 4, o.y + 26, lvl);
-    if (lvl >= 80) for (let i = 0; i < 2; i++) { const q = (t + i * 0.5) % 1; const pa = g.alpha(1 - q); g.px(gx + 6 + i * 2, o.y + 24 - Math.round(q * 6), '#ffffff'); g.alpha(pa); }
+    drawThermo(g, gx + 4, o.y + 27, lvl);
+    if (lvl >= 80) for (let i = 0; i < 2; i++) { const q = (t + i * 0.5) % 1; const pa = g.alpha(1 - q); g.px(gx + 6 + i * 2, o.y + 26 - Math.round(q * 6), '#ffffff'); g.alpha(pa); }
     const ls = lvl + '%';
     g.text(ls, gx + 6 - Math.round(txtW(ls) / 2), o.y + 61, lvl < 50 ? '#4cc38a' : lvl < 80 ? '#f2c14e' : '#e5533d');
-    drawPig(g, this.art, gx, o.y + 72, t, oi * 0.7);
+    drawPig(g, this.art, gx, o.y + 80, t, oi * 0.7);
     const s = '$' + this.costOf(o.id).toFixed(2);
-    g.text(s, gx + 7 - Math.round(txtW(s) / 2), o.y + 87, '#f5c542');
+    g.text(s, Math.max(gx - 1, gx + 8 - Math.round(measure(s, FONT_4x6) / 2)), o.y + 91, '#f5c542', 1, FONT_4x6);
     if (fresh < 0.6) poof(g, gx + 6, o.y + 50, fresh / 0.6);
   }
 

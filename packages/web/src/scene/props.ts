@@ -95,7 +95,7 @@ export function drawPig(g: Painter, art: Art, x: number, y: number, t: number, p
   art.draw(g, 'prop.piggy', x, y, { noAnchor: true });
   const p = ((t + phase) / 2.2) % 1;
   if (p < 0.7) {
-    const cy = Math.round(y - 14 + (p / 0.7) * 13), cx = x + 5;
+    const cy = Math.round(y - 10 + (p / 0.7) * 9), cx = x + 5;
     if (!art.draw(g, 'prop.coin.small', cx, cy, { noAnchor: true })) { g.rect(cx, cy, 3, 3, '#b8860b'); g.rect(cx, cy, 3, 1, '#f5c542'); }
   } else if (p < 0.85) {
     g.rect(x + 4, y - 3, 1, 1, '#fff1a8'); g.rect(x + 8, y - 4, 1, 1, '#fff1a8'); g.rect(x + 6, y - 6, 1, 1, '#ffd23f');
