@@ -10,6 +10,10 @@
     "ajv": "^8.17.1"
   },
   "scripts": {
-    "dev": "tsx src/cli.ts --config ../../pixelagents.config.json"
+    "dev": "tsx src/cli.ts --config ../../pixelagents.config.json",
+    "bench": "tsx bench/ingest.ts"
+  },
+  "bin": {
+    "pixelagents": "./src/cli.ts"
   }
 }
