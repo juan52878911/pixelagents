@@ -8,7 +8,7 @@ const COLOR = /^(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|rgba?\([^)]*\))$/;
 export function newSprite(name: string, w = 16, h = 16): PxSprite {
   return {
     name, w, h,
-    palette: { K: '#1b1620', R: '#e4572e', Y: '#ffd166', G: '#4cc38a', B: '#3b7dd8', W: '#f2eadf' },
+    palette: { R: '#e4572e', Y: '#ffd166', G: '#4cc38a', B: '#3b7dd8', W: '#f2eadf', K: '#1b1620' },
     frames: [blankFrame(w, h)],
     fps: 0,
   };

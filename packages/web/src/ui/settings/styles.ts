@@ -52,7 +52,8 @@ export const CSS = `
 .pa-swatch-wrap{display:inline-flex;align-items:center;gap:2px} .pa-swatch{width:30px;height:30px;border:2px solid var(--line);color:#fff;text-shadow:0 0 2px #000,0 0 2px #000;cursor:pointer;font:inherit}
 .pa-swatch.pa-on{border-color:var(--acc);outline:2px solid var(--acc)} .pa-mini-color{width:22px;height:22px;padding:0;border:0;background:none}
 .pa-frames{display:flex;gap:4px;flex-wrap:wrap}
-.pa-toast{margin-left:8px;padding:2px 8px;border:2px solid var(--line)} .pa-toast.ok{color:var(--ok);border-color:var(--ok)} .pa-toast.error{color:var(--bad);border-color:var(--bad)}
+.pa-toast{margin-left:8px;padding:2px 8px;border:2px solid var(--line)} .pa-toast:empty{display:none}.pa-maprow>.pa-field>label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.pa-toast.ok{color:var(--ok);border-color:var(--ok)} .pa-toast.error{color:var(--bad);border-color:var(--bad)}
 .pa-banner{padding:8px 16px;background:#4a2a10;color:#ffe2b8;border-bottom:2px solid var(--acc);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pa-banner[hidden]{display:none}
 .pa-dirty{color:var(--acc)}

@@ -97,6 +97,7 @@ export function mountSettings(ctx: UiContext, opts: SettingsOptions = {}): Setti
     st.errors = [];
     dirtyMark.textContent = dirty() ? '● unsaved changes' : '';
     revertBtn.disabled = !dirty();
+    if (dirty()) toast.textContent = '';
     for (const l of listeners) l();
   }
   function errBoxClear(): void { errBox.textContent = ''; }
