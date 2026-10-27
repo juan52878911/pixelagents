@@ -1,0 +1,902 @@
+{
+ "px": 1,
+ "sprites": [
+  {
+   "name": "prop.desk",
+   "w": 24,
+   "h": 11,
+   "palette": {
+    "A": "#c08a5c",
+    "B": "#a8744c",
+    "C": "#6b4329",
+    "D": "#5a3721",
+    "E": "#c9a06a",
+    "F": "#3e2616"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBBBB", "BBBBBBBBBBBBBBBBBBBBBBBB", "CCCCCCCCCCCCCCCCCCCCCCCC", "CDDDDDDDDDDDDDDDDDDDDDDC", "CDDDDDDDDDDDDDDEEEEDDDDC", "CDDDDDDDDDDDDDDDDDDDDDDC", "CDDDDDDDDDDDDDDDDDDDDDDC", "CCCCCCCCCCCCCCCCCCCCCCCC", ".FF..................FF.", ".FF..................FF."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "mesa 24x11 sin teclado; origen = esquina sup. izq."
+   }
+  },
+  {
+   "name": "prop.keyboard",
+   "w": 7,
+   "h": 2,
+   "palette": {
+    "A": "#d5d9e0",
+    "B": "#8f96a3"
+   },
+   "frames": [
+    ["AAAAAAA", "BBBBBBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "at": [3, 0],
+    "note": "relativo a la esquina de la mesa"
+   }
+  },
+  {
+   "name": "prop.chair",
+   "w": 8,
+   "h": 8,
+   "palette": {
+    "A": "#3b3346",
+    "B": "#4d4459"
+   },
+   "frames": [
+    ["AAAAAAAA", "ABBBBBBA", "AAAAAAAA", "AAAAAAAA", "AAAAAAAA", "AAAAAAAA", "AAAAAAAA", "AAAAAAAA"]
+   ],
+   "anchor": [-1, 7],
+   "meta": {
+    "note": "origen = (cx, dy) de drawChair"
+   }
+  },
+  {
+   "name": "prop.monitor.frame",
+   "w": 10,
+   "h": 9,
+   "palette": {
+    "A": "#2a2733",
+    "B": "#3b3846"
+   },
+   "frames": [
+    ["AAAAAAAAAA", "AAAAAAAAAA", "AAAAAAAAAA", "AAAAAAAAAA", "AAAAAAAAAA", "AAAAAAAAAA", "AAAAAAAAAA", "....AA....", "...BBBB..."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "screen": [
+     1,
+     1,
+     8,
+     5
+    ],
+    "note": "pantalla animada en el plugin (fx.monitor)"
+   }
+  },
+  {
+   "name": "prop.door.closed",
+   "w": 12,
+   "h": 15,
+   "palette": {
+    "A": "#4a3322",
+    "B": "#7a5232",
+    "C": "#8a6040",
+    "D": "#f5c542"
+   },
+   "frames": [
+    ["AAAAAAAAAAAA", "ABBBBBBBBBBA", "ABCCCCCCCCBA", "ABCCCCCCCCBA", "ABCCCCCCCCBA", "ABCCCCCCCCBA", "ABCCCCCCCCBA", "ABBBBBBBBBBA", "ABCCCCCCCDBA", "ABCCCCCCCCBA", "ABCCCCCCCCBA", "ABCCCCCCCCBA", "ABCCCCCCCCBA", "ABBBBBBBBBBA", "ABBBBBBBBBBA"]
+   ],
+   "anchor": [1, -1],
+   "meta": {}
+  },
+  {
+   "name": "prop.door.open",
+   "w": 12,
+   "h": 15,
+   "palette": {
+    "A": "#4a3322",
+    "B": "#7a5232",
+    "C": "#120e18",
+    "D": "#2a2236"
+   },
+   "frames": [
+    ["AAAAAAAAAAAA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBCCCCCCCCA", "ABBDDDDDDDDA"]
+   ],
+   "anchor": [1, -1],
+   "meta": {}
+  },
+  {
+   "name": "prop.sofa",
+   "w": 34,
+   "h": 11,
+   "palette": {
+    "A": "#7a3b4f",
+    "B": "#6e3a4c",
+    "C": "#8f4a60",
+    "D": "#1a1423"
+   },
+   "frames": [
+    ["..AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..", "..AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..", "..AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA..", "BBBAAAAAAAAAAAAAAAAAAAAAAAAAAAABBB", "BBBAAAAAAAAAAAAAAAAAAAAAAAAAAAABBB", "BBBCCCCCCCCCCCCCCCCCCCCCCCCCCCCBBB", "BBBCCCCCCCCCCCCCCCCCCCCCCCCCCCCBBB", "BBBCCCCCCCCCCCCCCCCCCCCCCCCCCCCBBB", "BBBCCCCCCCCCCCCCCCCCCCCCCCCCCCCBBB", "BBB............................BBB", "...DD........................DD..."]
+   ],
+   "anchor": [2, 0],
+   "meta": {
+    "place": "floor"
+   }
+  },
+  {
+   "name": "prop.plant",
+   "w": 8,
+   "h": 12,
+   "palette": {
+    "A": "#4c8a3f",
+    "B": "#6fb35a",
+    "C": "#c0703d",
+    "D": "#a0522d"
+   },
+   "frames": [
+    ["...AA...", "...AABBB", "BBBAABBB", "BBBAA...", ".AAAAAA.", ".AAAAAA.", "...AA...", ".CCCCCC.", ".DDDDDD.", ".DDDDDD.", ".DDDDDD.", ".DDDDDD."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor"
+   }
+  },
+  {
+   "name": "prop.cooler",
+   "w": 7,
+   "h": 17,
+   "palette": {
+    "A": "#8fd3ff",
+    "B": "#c9ecff",
+    "C": "#9aa0aa",
+    "D": "#e8e8ee",
+    "E": "#b9bcc6",
+    "F": "#3b7dd8"
+   },
+   "frames": [
+    [".AAAAA.", ".ABAAA.", ".ABAAA.", ".ABAAA.", ".ABAAA.", ".AAAAA.", "CCCCCCC", "DDDDDDE", "DDDDDDE", "DDFFDDE", "DDDDDDE", "DDDDDDE", "DDDDDDE", "DDDDDDE", "DDDDDDE", "DDDDDDE", "DDDDDDE"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "note": "dispensador; la burbuja se anima en plugin"
+   }
+  },
+  {
+   "name": "prop.table",
+   "w": 16,
+   "h": 10,
+   "palette": {
+    "A": "#e8e8ee",
+    "B": "#3b7dd8",
+    "C": "#a8845e",
+    "D": "#8a6a48",
+    "E": "#5a3d28"
+   },
+   "frames": [
+    ["....AAA.........", "....AAA..BBBBB..", "CCCCCCCCCCCCCCCC", "DDDDDDDDDDDDDDDD", "DDDDDDDDDDDDDDDD", ".EE..........EE.", ".EE..........EE.", ".EE..........EE.", ".EE..........EE.", ".EE..........EE."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "note": "mesita"
+   }
+  },
+  {
+   "name": "prop.shelf",
+   "w": 12,
+   "h": 16,
+   "palette": {
+    "A": "#6b4329",
+    "B": "#3e2616",
+    "C": "#3b7dd8",
+    "D": "#f2c14e",
+    "E": "#e5533d",
+    "F": "#4cc38a",
+    "G": "#9b5de5"
+   },
+   "frames": [
+    ["AAAAAAAAAAAA", "ABBBBBBBBBBA", "ABBBCBDBBBBA", "ABEBCBDBFBBA", "ABEBCBDBFBBA", "AAAAAAAAAAAA", "ABBBBBBBBBBA", "ABCBBBFBGBBA", "ABCBDBFBGBBA", "ABCBDBFBGBBA", "AAAAAAAAAAAA", "ABBBBBBBBBBA", "ABBBBBGBEBBA", "ABDBFBGBEBBA", "ABDBFBGBEBBA", "AAAAAAAAAAAA"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "note": "estantería"
+   }
+  },
+  {
+   "name": "prop.lamp",
+   "w": 7,
+   "h": 16,
+   "palette": {
+    "A": "#f2c14e",
+    "B": "rgba(255,241,168,0.25)",
+    "C": "#6b635f",
+    "D": "#3a3346"
+   },
+   "frames": [
+    ["..AAA..", ".AAAAA.", ".AAAAA.", ".AAAAA.", ".AAAAA.", "BBBCBBB", "BBBCBBB", "...D...", "...D...", "...D...", "...D...", "...D...", "...D...", "...D...", "..DDD..", "..DDD.."]
+   ],
+   "anchor": [1, 0],
+   "meta": {
+    "place": "floor",
+    "glow": "rgba(255,241,168,0.25) 7x2 en (-1,5)"
+   }
+  },
+  {
+   "name": "prop.rack",
+   "w": 12,
+   "h": 28,
+   "palette": {
+    "A": "#3a404c",
+    "B": "#1b1e24",
+    "C": "#2f3540"
+   },
+   "frames": [
+    ["AAAAAAAAAAAA", "BBBBBBBBBBBB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BBBBBBBBBBBB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BBBBBBBBBBBB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BBBBBBBBBBBB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BBBBBBBBBBBB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BBBBBBBBBBBB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BCCCCCCCCCCB", "BBBBBBBBBBBB", "BBBBBBBBBBBB", "BBBBBBBBBBBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor"
+   }
+  },
+  {
+   "name": "tree.0.verano",
+   "w": 14,
+   "h": 18,
+   "palette": {
+    "A": "#3f8a3a",
+    "B": "#5aa84a",
+    "C": "#2e6a2c",
+    "D": "#8a5a3a",
+    "E": "#6b4329",
+    "F": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".....ABBC.....", "...ABBAAACC...", "..ABBAAAAACC..", ".ABBAAAAAAACC.", ".ABBAAAAAAACC.", "AAAAAAAAAAAACC", "AAAAAAAAAAAACC", ".AAAAAAAAAACC.", ".AAAAAAAAAACC.", "..AAAAAAAACC..", "....AAAACC....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", "...FFDEEEFFF..", "...FFFFFFFFF.."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "kind": "round",
+    "season": "verano"
+   }
+  },
+  {
+   "name": "tree.1.verano",
+   "w": 18,
+   "h": 19,
+   "palette": {
+    "A": "#2f6a3a",
+    "B": "#2e6a2c",
+    "C": "#8a5a3a",
+    "D": "#6b4329",
+    "E": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    ["........AA........", ".......AAAA.......", ".....AAAAAAAA.....", "....BBBBBBBBBB....", "......AAAAAA......", ".....AAAAAAAA.....", "...AAAAAAAAAAAA...", "..BBBBBBBBBBBBBB..", "....AAAAAAAAAA....", "...AAAAAAAAAAAA...", ".AAAAAAAAAAAAAAAA.", "BBBBBBBBBBBBBBBBBB", ".......CDDD.......", ".......CDDD.......", ".......CDDD.......", ".......CDDD.......", ".......CDDD.......", ".....EECDDDEEE....", ".....EEEEEEEEE...."]
+   ],
+   "anchor": [2, 1],
+   "meta": {
+    "place": "floor",
+    "kind": "pine",
+    "season": "verano"
+   }
+  },
+  {
+   "name": "tree.2.verano",
+   "w": 14,
+   "h": 18,
+   "palette": {
+    "A": "#b5482a",
+    "B": "#5aa84a",
+    "C": "#2e6a2c",
+    "D": "#8a5a3a",
+    "E": "#6b4329",
+    "F": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".....ABBC.....", "...ABBAAACC...", "..ABBAAAAACC..", ".ABBAAAAAAACC.", ".ABBAAAAAAACC.", "AAAAAAAAAAAACC", "AAAAAAAAAAAACC", ".AAAAAAAAAACC.", ".AAAAAAAAAACC.", "..AAAAAAAACC..", "....AAAACC....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", "...FFDEEEFFF..", "...FFFFFFFFF.."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "kind": "autumn",
+    "season": "verano"
+   }
+  },
+  {
+   "name": "bush.verano",
+   "w": 8,
+   "h": 6,
+   "palette": {
+    "A": "#3f8a3a",
+    "B": "#5aa84a",
+    "C": "#2e6a2c",
+    "D": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".ABBAAA.", "CAAAAAAC", "CAAAAAAC", "CAAAAAAC", "CCCCCCCC", ".DDDDDD."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "season": "verano"
+   }
+  },
+  {
+   "name": "tree.0.otono",
+   "w": 14,
+   "h": 18,
+   "palette": {
+    "A": "#d9822b",
+    "B": "#f2b04e",
+    "C": "#a85a1c",
+    "D": "#8a5a3a",
+    "E": "#6b4329",
+    "F": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".....ABBC.....", "...ABBAAACC...", "..ABBAAAAACC..", ".ABBAAAAAAACC.", ".ABBAAAAAAACC.", "AAAAAAAAAAAACC", "AAAAAAAAAAAACC", ".AAAAAAAAAACC.", ".AAAAAAAAAACC.", "..AAAAAAAACC..", "....AAAACC....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", "...FFDEEEFFF..", "...FFFFFFFFF.."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "kind": "round",
+    "season": "otono"
+   }
+  },
+  {
+   "name": "tree.1.otono",
+   "w": 18,
+   "h": 19,
+   "palette": {
+    "A": "#2f6a3a",
+    "B": "#a85a1c",
+    "C": "#8a5a3a",
+    "D": "#6b4329",
+    "E": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    ["........AA........", ".......AAAA.......", ".....AAAAAAAA.....", "....BBBBBBBBBB....", "......AAAAAA......", ".....AAAAAAAA.....", "...AAAAAAAAAAAA...", "..BBBBBBBBBBBBBB..", "....AAAAAAAAAA....", "...AAAAAAAAAAAA...", ".AAAAAAAAAAAAAAAA.", "BBBBBBBBBBBBBBBBBB", ".......CDDD.......", ".......CDDD.......", ".......CDDD.......", ".......CDDD.......", ".......CDDD.......", ".....EECDDDEEE....", ".....EEEEEEEEE...."]
+   ],
+   "anchor": [2, 1],
+   "meta": {
+    "place": "floor",
+    "kind": "pine",
+    "season": "otono"
+   }
+  },
+  {
+   "name": "tree.2.otono",
+   "w": 14,
+   "h": 18,
+   "palette": {
+    "A": "#b5482a",
+    "B": "#f2b04e",
+    "C": "#a85a1c",
+    "D": "#8a5a3a",
+    "E": "#6b4329",
+    "F": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".....ABBC.....", "...ABBAAACC...", "..ABBAAAAACC..", ".ABBAAAAAAACC.", ".ABBAAAAAAACC.", "AAAAAAAAAAAACC", "AAAAAAAAAAAACC", ".AAAAAAAAAACC.", ".AAAAAAAAAACC.", "..AAAAAAAACC..", "....AAAACC....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", "...FFDEEEFFF..", "...FFFFFFFFF.."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "kind": "autumn",
+    "season": "otono"
+   }
+  },
+  {
+   "name": "bush.otono",
+   "w": 8,
+   "h": 6,
+   "palette": {
+    "A": "#d9822b",
+    "B": "#f2b04e",
+    "C": "#a85a1c",
+    "D": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".ABBAAA.", "CAAAAAAC", "CAAAAAAC", "CAAAAAAC", "CCCCCCCC", ".DDDDDD."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "season": "otono"
+   }
+  },
+  {
+   "name": "tree.0.invierno",
+   "w": 14,
+   "h": 18,
+   "palette": {
+    "A": "#2f6a4a",
+    "B": "#ffffff",
+    "C": "#24523a",
+    "D": "#8a5a3a",
+    "E": "#6b4329",
+    "F": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".....ABBC.....", "...ABBAAACC...", "..ABBAAAAACC..", ".ABBAAAAAAACC.", ".ABBAAAAAAACC.", "AAAAAAAAAAAACC", "AAAAAAAAAAAACC", ".AAAAAAAAAACC.", ".AAAAAAAAAACC.", "..AAAAAAAACC..", "....AAAACC....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", "...FFDEEEFFF..", "...FFFFFFFFF.."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "kind": "round",
+    "season": "invierno"
+   }
+  },
+  {
+   "name": "tree.1.invierno",
+   "w": 18,
+   "h": 19,
+   "palette": {
+    "A": "#ffffff",
+    "B": "#2f6a3a",
+    "C": "#24523a",
+    "D": "#8a5a3a",
+    "E": "#6b4329",
+    "F": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    ["........AA........", ".......BBBB.......", ".....BBBBBBBB.....", "....CCCCCCCCCC....", "......AAAAAA......", ".....BBBBBBBB.....", "...BBBBBBBBBBBB...", "..CCCCCCCCCCCCCC..", "....AAAAAAAAAA....", "...BBBBBBBBBBBB...", ".BBBBBBBBBBBBBBBB.", "CCCCCCCCCCCCCCCCCC", ".......DEEE.......", ".......DEEE.......", ".......DEEE.......", ".......DEEE.......", ".......DEEE.......", ".....FFDEEEFFF....", ".....FFFFFFFFF...."]
+   ],
+   "anchor": [2, 1],
+   "meta": {
+    "place": "floor",
+    "kind": "pine",
+    "season": "invierno"
+   }
+  },
+  {
+   "name": "tree.2.invierno",
+   "w": 14,
+   "h": 18,
+   "palette": {
+    "A": "#2f6a4a",
+    "B": "#ffffff",
+    "C": "#24523a",
+    "D": "#8a5a3a",
+    "E": "#6b4329",
+    "F": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".....ABBC.....", "...ABBAAACC...", "..ABBAAAAACC..", ".ABBAAAAAAACC.", ".ABBAAAAAAACC.", "AAAAAAAAAAAACC", "AAAAAAAAAAAACC", ".AAAAAAAAAACC.", ".AAAAAAAAAACC.", "..AAAAAAAACC..", "....AAAACC....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", ".....DEEE.....", "...FFDEEEFFF..", "...FFFFFFFFF.."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "kind": "autumn",
+    "season": "invierno"
+   }
+  },
+  {
+   "name": "bush.invierno",
+   "w": 8,
+   "h": 6,
+   "palette": {
+    "A": "#2f6a4a",
+    "B": "#ffffff",
+    "C": "#24523a",
+    "D": "rgba(0,0,0,0.25)"
+   },
+   "frames": [
+    [".ABBAAA.", "CAAAAAAC", "CAAAAAAC", "CAAAAAAC", "CCCCCCCC", ".DDDDDD."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "place": "floor",
+    "season": "invierno"
+   }
+  },
+  {
+   "name": "prop.piggy",
+   "w": 15,
+   "h": 9,
+   "palette": {
+    "A": "#f29bb3",
+    "B": "#1a1423",
+    "C": "#d06f8f",
+    "D": "#e57a9a"
+   },
+   "frames": [
+    ["....AAAA.......", "..AAABBBAAA.C..", ".AAAAAAAAAAAAC.", "AAAAAAAAAAABAA.", "AAAAAAAAAAAAADD", "CAAAAAAAAAAAADD", ".AAAAAAAAAAAAA.", "..CAAAAAAAAAC..", "..CC..CC..CC..."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "cerdito-hucha 15x9"
+   }
+  },
+  {
+   "name": "prop.coin",
+   "w": 5,
+   "h": 5,
+   "palette": {
+    "A": "#b8860b",
+    "B": "#f5c542",
+    "C": "#fff1a8"
+   },
+   "frames": [
+    [".AAA.", "ABBBA", "ABCBA", "ABBBA", ".AAA."]
+   ],
+   "anchor": [0, 0],
+   "meta": {}
+  },
+  {
+   "name": "prop.coin.small",
+   "w": 3,
+   "h": 3,
+   "palette": {
+    "A": "#f5c542",
+    "B": "#b8860b",
+    "C": "#fff1a8"
+   },
+   "frames": [
+    ["AAA", "BCB", "BBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "moneda que cae a la hucha"
+   }
+  },
+  {
+   "name": "prop.tomb",
+   "w": 12,
+   "h": 12,
+   "palette": {
+    "A": "#8a8f98",
+    "B": "#a9aeb7",
+    "C": "#6c717a",
+    "D": "#5a5f68",
+    "E": "#5b4636",
+    "F": "#4c8a3f"
+   },
+   "frames": [
+    ["...AAAAAA...", "..AAAAAAAA..", ".ABAAAAAACA.", ".ABAADDAACA.", ".ABAADDAACA.", ".ABDDDDDDCA.", ".ABAADDAACA.", ".ABAADDAACA.", ".ABAADDAACA.", ".ABAAAAAACA.", "EFFEEEEEEFFE", "EEEEEEEEEEEE"]
+   ],
+   "anchor": [1, 0],
+   "meta": {
+    "note": "lápida"
+   }
+  },
+  {
+   "name": "prop.ghost",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "W": "#f2f4ff",
+    "E": "#1a1423",
+    "O": "#3a3346"
+   },
+   "frames": [
+    ["..WWWW...", ".WWWWWW..", "WWEWWEWW.", "WWWWWWWW.", "WWWOOWWW.", "WWWWWWWW.", "WWWWWWWW.", "W.WW.WW..", "..W..W..."],
+    ["..WWWW...", ".WWWWWW..", "WWEWWEWW.", "WWWWWWWW.", "WWWOOWWW.", "WWWWWWWW.", "WWWWWWWW.", ".WW.WW.W.", ".W..W...."]
+   ],
+   "fps": 4,
+   "anchor": [0, 0],
+   "meta": {
+    "alpha": [
+     0.4,
+     0.9
+    ],
+    "bob": 2
+   }
+  },
+  {
+   "name": "pod.base.run",
+   "w": 22,
+   "h": 4,
+   "palette": {
+    "A": "#5f6b77",
+    "B": "#4a5560",
+    "C": "#58e1f0"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBB", "BBBCCCCCCCCCCCCCCCCBBB", "BBBBBBBBBBBBBBBBBBBBBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "zócalo; origen = (px, py+26); fire parpadea a #ffd23f"
+   }
+  },
+  {
+   "name": "pod.back.run",
+   "w": 20,
+   "h": 24,
+   "palette": {
+    "A": "#1f2a33",
+    "B": "#5c6670"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "ABBBBBBBBBBBBBBBBBBA", "ABBBBBBBBBBBBBBBBBBA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA"]
+   ],
+   "anchor": [-1, -2],
+   "meta": {
+    "note": "interior y suelo: ANTES del personaje; origen = (px, py)"
+   }
+  },
+  {
+   "name": "pod.front.run",
+   "w": 22,
+   "h": 26,
+   "palette": {
+    "A": "#7fd8e8",
+    "B": "rgba(255,255,255,0.35)"
+   },
+   "frames": [
+    ["..AAAAAAAAAAAAAAAAAA..", ".A..................A.", "A....................A", "A.B..................A", "A.B..................A", "A.B..................A", "A.B..................A", "A.B..................A", "A.B..................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "cristal y marco: DESPUÉS del personaje; origen = (px, py); fire parpadea #ff9a5c/#ffd23f"
+   }
+  },
+  {
+   "name": "pod.base.fire",
+   "w": 22,
+   "h": 4,
+   "palette": {
+    "A": "#5f6b77",
+    "B": "#4a5560",
+    "C": "#ff5a3c"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBB", "BBBCCCCCCCCCCCCCCCCBBB", "BBBBBBBBBBBBBBBBBBBBBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "zócalo; origen = (px, py+26); fire parpadea a #ffd23f"
+   }
+  },
+  {
+   "name": "pod.back.fire",
+   "w": 20,
+   "h": 24,
+   "palette": {
+    "A": "#1f2a33",
+    "B": "#5c6670"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "ABBBBBBBBBBBBBBBBBBA", "ABBBBBBBBBBBBBBBBBBA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA"]
+   ],
+   "anchor": [-1, -2],
+   "meta": {
+    "note": "interior y suelo: ANTES del personaje; origen = (px, py)"
+   }
+  },
+  {
+   "name": "pod.front.fire",
+   "w": 22,
+   "h": 26,
+   "palette": {
+    "A": "#ffd23f",
+    "B": "rgba(255,255,255,0.35)"
+   },
+   "frames": [
+    ["..AAAAAAAAAAAAAAAAAA..", ".A..................A.", "A....................A", "A.B..................A", "A.B..................A", "A.B..................A", "A.B..................A", "A.B..................A", "A.B..................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "cristal y marco: DESPUÉS del personaje; origen = (px, py); fire parpadea #ff9a5c/#ffd23f"
+   }
+  },
+  {
+   "name": "pod.base.frozen",
+   "w": 22,
+   "h": 4,
+   "palette": {
+    "A": "#5f6b77",
+    "B": "#4a5560",
+    "C": "#9fdcff"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBB", "BBBCCCCCCCCCCCCCCCCBBB", "BBBBBBBBBBBBBBBBBBBBBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "zócalo; origen = (px, py+26); fire parpadea a #ffd23f"
+   }
+  },
+  {
+   "name": "pod.back.frozen",
+   "w": 20,
+   "h": 24,
+   "palette": {
+    "A": "#d9f3fb",
+    "B": "#5c6670"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "ABBBBBBBBBBBBBBBBBBA", "ABBBBBBBBBBBBBBBBBBA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA"]
+   ],
+   "anchor": [-1, -2],
+   "meta": {
+    "note": "interior y suelo: ANTES del personaje; origen = (px, py)"
+   }
+  },
+  {
+   "name": "pod.front.frozen",
+   "w": 22,
+   "h": 26,
+   "palette": {
+    "A": "#ffffff",
+    "B": "rgba(255,255,255,0.35)"
+   },
+   "frames": [
+    ["..AAAAAAAAAAAAAAAAAA..", ".A..................A.", "AAAA..............AAAA", "AAB.................AA", "AAB.................AA", "A.B..................A", "A.B..................A", "A.B..................A", "A.B..................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "cristal y marco: DESPUÉS del personaje; origen = (px, py); fire parpadea #ff9a5c/#ffd23f"
+   }
+  },
+  {
+   "name": "pod.base.dead",
+   "w": 22,
+   "h": 4,
+   "palette": {
+    "A": "#5f6b77",
+    "B": "#4a5560",
+    "C": "#6b6f78"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBB", "BBBCCCCCCCCCCCCCCCCBBB", "BBBBBBBBBBBBBBBBBBBBBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "zócalo; origen = (px, py+26); fire parpadea a #ffd23f"
+   }
+  },
+  {
+   "name": "pod.back.dead",
+   "w": 20,
+   "h": 24,
+   "palette": {
+    "A": "#14191e",
+    "B": "#5c6670"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "ABBBBBBBBBBBBBBBBBBA", "ABBBBBBBBBBBBBBBBBBA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA"]
+   ],
+   "anchor": [-1, -2],
+   "meta": {
+    "note": "interior y suelo: ANTES del personaje; origen = (px, py)"
+   }
+  },
+  {
+   "name": "pod.front.dead",
+   "w": 28,
+   "h": 30,
+   "palette": {
+    "A": "#59606a",
+    "B": "#7fd8e8"
+   },
+   "frames": [
+    ["....AAAAAAAAAAAAAAAAAA......", "...A..................A.....", "..A....................A....", "..A....................A....", "..A....................A....", "..A....................A....", "..A....................A....", "..A....................A....", "..A....................A....", ".......................A....", ".......................A....", ".......................A....", ".......................A....", "..A....................A....", "..A....................A....", "..A....................A....", "..A....................A....", "..A.........................", "..A.........................", "..A.........................", "..A.........................", "..A....................A....", "..A....................A....", "..A....................A....", "..A....................A....", "..A....................A....", "............................", "............................", ".........................B..", "BB........................BB"]
+   ],
+   "anchor": [2, 0],
+   "meta": {
+    "note": "cristal y marco: DESPUÉS del personaje; origen = (px, py); fire parpadea #ff9a5c/#ffd23f"
+   }
+  },
+  {
+   "name": "pod.base.empty",
+   "w": 22,
+   "h": 4,
+   "palette": {
+    "A": "#5f6b77",
+    "B": "#4a5560",
+    "C": "#2a3138"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBBBBBBBB", "BBBCCCCCCCCCCCCCCCCBBB", "BBBBBBBBBBBBBBBBBBBBBB"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "zócalo; origen = (px, py+26); fire parpadea a #ffd23f"
+   }
+  },
+  {
+   "name": "pod.back.empty",
+   "w": 20,
+   "h": 24,
+   "palette": {
+    "A": "#14191e",
+    "B": "#3a424b"
+   },
+   "frames": [
+    ["AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "ABBBBBBBBBBBBBBBBBBA", "ABBBBBBBBBBBBBBBBBBA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAA"]
+   ],
+   "anchor": [-1, -2],
+   "meta": {
+    "note": "interior y suelo: ANTES del personaje; origen = (px, py)"
+   }
+  },
+  {
+   "name": "pod.front.empty",
+   "w": 22,
+   "h": 26,
+   "palette": {
+    "A": "#3d5560"
+   },
+   "frames": [
+    ["..AAAAAAAAAAAAAAAAAA..", ".A..................A.", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A", "A....................A"]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "note": "cristal y marco: DESPUÉS del personaje; origen = (px, py); fire parpadea #ff9a5c/#ffd23f"
+   }
+  },
+  {
+   "name": "bubble.think",
+   "w": 11,
+   "h": 9,
+   "palette": {
+    "A": "#1a1423",
+    "B": "#ffffff"
+   },
+   "frames": [
+    [".AAAAAAAAA.", "ABBBBBBBBBA", "ABBBBBBBBBA", "ABBBBBBBBBA", "ABBBBBBBBBA", "ABBBBBBBBBA", ".AABAAAAAA.", "..AA.......", "..A........"],
+    [".AAAAAAAAA.", "ABBBBBBBBBA", "ABBBBBBBBBA", "ABABBBBBBBA", "ABBBBBBBBBA", "ABBBBBBBBBA", ".AABAAAAAA.", "..AA.......", "..A........"],
+    [".AAAAAAAAA.", "ABBBBBBBBBA", "ABBBBBBBBBA", "ABABBABBBBA", "ABBBBBBBBBA", "ABBBBBBBBBA", ".AABAAAAAA.", "..AA.......", "..A........"],
+    [".AAAAAAAAA.", "ABBBBBBBBBA", "ABBBBBBBBBA", "ABABBABBABA", "ABBBBBBBBBA", "ABBBBBBBBBA", ".AABAAAAAA.", "..AA.......", "..A........"]
+   ],
+   "anchor": [0, 0],
+   "fps": 3,
+   "meta": {
+    "at": [7, -9],
+    "note": "frame = nº de puntos; ciclo floor(t*3)%4"
+   }
+  },
+  {
+   "name": "bubble.wait",
+   "w": 7,
+   "h": 11,
+   "palette": {
+    "A": "#1a1423",
+    "B": "#ffd23f"
+   },
+   "frames": [
+    [".AAAAA.", "ABBBBBA", "ABBABBA", "ABBABBA", "ABBABBA", "ABBBBBA", "ABBABBA", "ABBBBBA", ".AABAA.", "..AA...", "..A...."]
+   ],
+   "anchor": [0, 0],
+   "meta": {
+    "at": [8, -11],
+    "bob": 1,
+    "note": "sube 1px cada 0.25s"
+   }
+  },
+  {
+   "name": "bubble.talk",
+   "w": 12,
+   "h": 9,
+   "palette": {
+    "A": "#1a1423",
+    "B": "#ffffff",
+    "C": "#8a8399"
+   },
+   "frames": [
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAABBBBBBA", "ABBBBBBBBBBA", "ABCCCCCCBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."],
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAAAAAAABA", "ABBBBBBBBBBA", "ABCCCCBBBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."],
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAAAAABBBA", "ABBBBBBBBBBA", "ABCCCBBBBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."],
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAAAABBBBA", "ABBBBBBBBBBA", "ABCCCCBBBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."],
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAAAABBBBA", "ABBBBBBBBBBA", "ABCCCBBBBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."],
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAAAAAAABA", "ABBBBBBBBBBA", "ABCCBBBBBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."],
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAAAAAABBA", "ABBBBBBBBBBA", "ABCCCCCBBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."],
+    [".AAAAAAAAAA.", "ABBBBBBBBBBA", "ABAAAABBBBBA", "ABBBBBBBBBBA", "ABCCBBBBBBBA", "ABBBBBBBBBBA", ".AABAAAAAAA.", "..AA........", "..A........."]
+   ],
+   "anchor": [0, 0],
+   "fps": 5,
+   "meta": {
+    "at": [7, -9],
+    "note": "frame k = floor(t*5) % 8"
+   }
+  }
+ ]
+}

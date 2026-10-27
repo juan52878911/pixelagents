@@ -1,0 +1,694 @@
+{
+ "px": 1,
+ "sprites": [
+  {
+   "name": "deco.bloque",
+   "w": 12,
+   "h": 12,
+   "palette": {
+    "O": "#1a1423",
+    "Y": "#f0a030",
+    "d": "#8a4a12",
+    "w": "#fff1a8"
+   },
+   "frames": [
+    ["OOOOOOOOOOOO", "OdYYYYYYYYdO", "OYYYOOOOYYYO", "OYYOOYYOOYYO", "OYYOOYYOOYYO", "OYYYYYOOYYYO", "OYYYYOOYYYYO", "OYYYYOOYYYYO", "OYYYYYYYYYYO", "OYYYYOOYYYYO", "OdYYYYYYYYdO", "OOOOOOOOOOOO"],
+    ["OOOOOOOOOOOO", "OdYYYYYYYYdO", "OYYYwwwwYYYO", "OYYwwYYwwYYO", "OYYwwYYwwYYO", "OYYYYYwwYYYO", "OYYYYwwYYYYO", "OYYYYwwYYYYO", "OYYYYYYYYYYO", "OYYYYwwYYYYO", "OdYYYYYYYYdO", "OOOOOOOOOOOO"]
+   ],
+   "fps": 1.5,
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Bloque sorpresa"
+   }
+  },
+  {
+   "name": "deco.corazones",
+   "w": 15,
+   "h": 5,
+   "palette": {
+    "O": "#1a1423",
+    "R": "#e5533d",
+    "r": "#ff9d8a",
+    "g": "#5b5470"
+   },
+   "frames": [
+    ["OO.OOOO.OOOO.OO", "OrRROOrRROOrRgO", "ORRROORRROORRgO", ".ORO..ORO..OgO.", "..O....O....O.."],
+    ["OO.OOOO.OOOO.OO", "OrRROOrRROOgggO", "ORRROORRROOgggO", ".ORO..ORO..OgO.", "..O....O....O.."]
+   ],
+   "fps": 2,
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Corazones de vida"
+   }
+  },
+  {
+   "name": "deco.invader",
+   "w": 13,
+   "h": 10,
+   "palette": {
+    "O": "#1a1423",
+    "k": "#100e16",
+    "A": "#7ee787"
+   },
+   "frames": [
+    ["OOOOOOOOOOOOO", "OkkAkkkkkAkkO", "OkkkAkkkAkkkO", "OkkAAAAAAAkkO", "OkAAkAAAkAAkO", "OAAAAAAAAAAAO", "OAkAAAAAAAkAO", "OAkAkkkkkAkAO", "OkkkAAkAAkkkO", "OOOOOOOOOOOOO"],
+    ["OOOOOOOOOOOOO", "OkkAkkkkkAkkO", "OAkkAkkkAkkAO", "OAkAAAAAAAkAO", "OAAAkAAAkAAAO", "OAAAAAAAAAAAO", "OkAAAAAAAAAkO", "OkkAkkkkkAkkO", "OkAkkkkkkkAkO", "OOOOOOOOOOOOO"]
+   ],
+   "fps": 2,
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Alien de recreativa"
+   }
+  },
+  {
+   "name": "deco.fantasma",
+   "w": 16,
+   "h": 8,
+   "palette": {
+    "O": "#1a1423",
+    "C": "#5ad1e6",
+    "w": "#e9f2f7",
+    "b": "#2f5fb3",
+    "p": "#ffe9b0"
+   },
+   "frames": [
+    ["..OOOO..........", ".OCCCCO.........", "OCwwCwwO........", "OCwbCwbO..pp..pp", "OCCCCCCO..pp..pp", "OCCCCCCO........", "OCCCCCCO........", "OC.CC.CO........"],
+    ["..OOOO..........", ".OCCCCO.........", "OCwwCwwO........", "OCwbCwbO......pp", "OCCCCCCO......pp", "OCCCCCCO........", "OCCCCCCO........", "O.CCCC.O........"],
+    ["..OOOO..........", ".OCCCCO.........", "OCwwCwwO........", "OCwbCwbO........", "OCCCCCCO........", "OCCCCCCO........", "OCCCCCCO........", "OC.CC.CO........"]
+   ],
+   "fps": 2,
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Fantasma de laberinto"
+   }
+  },
+  {
+   "name": "deco.cartel_1up",
+   "w": 15,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "B": "#163a22",
+    "G": "#7ee787",
+    "W": "#d8ffe0"
+   },
+   "frames": [
+    ["OOOOOOOOOOOOOOO", "OBBBBBBBBBBBBBO", "OB.G..G.G.GG.BO", "OBGG..G.G.G.GBO", "OB.G..G.G.GG.BO", "OB.G..G.G.G..BO", "OBGGG.GGG.G..BO", "OBBBBBBBBBBBBBO", "OOOOOOOOOOOOOOO"],
+    ["OOOOOOOOOOOOOOO", "OBBBBBBBBBBBBBO", "OB.W..W.W.WW.BO", "OBWW..W.W.W.WBO", "OB.W..W.W.WW.BO", "OB.W..W.W.W..BO", "OBWWW.WWW.W..BO", "OBBBBBBBBBBBBBO", "OOOOOOOOOOOOOOO"]
+   ],
+   "fps": 1.5,
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Cartel 1UP"
+   }
+  },
+  {
+   "name": "deco.escudo",
+   "w": 10,
+   "h": 12,
+   "palette": {
+    "O": "#1a1423",
+    "y": "#d9a441",
+    "B": "#2f5fb3",
+    "b": "#234a8c",
+    "r": "#e5533d"
+   },
+   "frames": [
+    ["OOOOOOOOOO", "OyyyyyyyyO", "OyBBBBBbyO", "OyBBrrBbyO", "OyBrrrrbyO", "OyBBrrBbyO", "OyBBBBBbyO", "OyBBBBBbyO", ".OyBBBbyO.", "..OyBbyO..", "...OyyO...", "....OO...."]
+   ],
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Escudo con gema"
+   }
+  },
+  {
+   "name": "deco.estrella",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "Y": "#ffd23f",
+    "w": "#fff6c9",
+    "e": "#1a1423"
+   },
+   "frames": [
+    ["....O....", "...OYO...", "...OYO...", "OOOOYOOOO", "OYYeYeYYO", ".OYYYYYO.", "..OYYYO..", ".OYYOYYO.", ".OO...OO."],
+    ["....O....", "...OwO...", "...OwO...", "OOOOwOOOO", "OwwewewwO", ".OwwwwwO.", "..OwwwO..", ".OwwOwwO.", ".OO...OO."]
+   ],
+   "fps": 4,
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Estrella de invencibilidad"
+   }
+  },
+  {
+   "name": "deco.mando",
+   "w": 16,
+   "h": 8,
+   "palette": {
+    "O": "#1a1423",
+    "g": "#8f96a3",
+    "d": "#5b5470",
+    "b": "#4a90e2",
+    "r": "#e5533d"
+   },
+   "frames": [
+    [".OOOOOOOOOOOOOO.", "OggggggggggggggO", "OggOgggggbbgrrgO", "OgOOOggggbbgrrgO", "OggOgggddggggggO", "OggggggggggggggO", "OddggggggggggddO", ".OOOOOOOOOOOOOO."]
+   ],
+   "meta": {
+    "place": "wall",
+    "kind": "deco",
+    "label": "Mando de consola"
+   }
+  },
+  {
+   "name": "deco.tuberia",
+   "w": 14,
+   "h": 16,
+   "palette": {
+    "O": "#1a1423",
+    "l": "#8ee6b4",
+    "G": "#4cc38a",
+    "d": "#2e8a5e"
+   },
+   "frames": [
+    ["OOOOOOOOOOOOOO", "OllGGGGGGGGddO", "OllGGGGGGGGddO", "OllGGGGGGGGddO", "OOOOOOOOOOOOOO", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OllGGGGGGddO.", ".OOOOOOOOOOOO."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Tubería verde"
+   }
+  },
+  {
+   "name": "deco.seta",
+   "w": 12,
+   "h": 12,
+   "palette": {
+    "O": "#1a1423",
+    "r": "#e5533d",
+    "w": "#e9f2f7",
+    "c": "#f5e6c8",
+    "e": "#1a1423"
+   },
+   "frames": [
+    ["...OOOOOO...", "..OrrrrrrrO.", ".OrrwwrwwrrO", "OrrrwwrwwrrO", "OrrrrwwrrrrO", "OrrrrwwrrrrO", "OOOOOOOOOOOO", ".OccccccccO.", ".OceccccecO.", ".OccccccccO.", "..OOOOOOOO..", "............"],
+    ["............", "...OOOOOO...", "..OrrrrrrrO.", ".OrrwwrwwrrO", "OrrrwwrwwrrO", "OrrrrwwrrrrO", "OrrrrwwrrrrO", "OOOOOOOOOOOO", ".OccccccccO.", ".OceccccecO.", ".OccccccccO.", "..OOOOOOOO.."]
+   ],
+   "fps": 2,
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Seta con lunares"
+   }
+  },
+  {
+   "name": "deco.cofre",
+   "w": 14,
+   "h": 13,
+   "palette": {
+    "O": "#1a1423",
+    "l": "#c9a06a",
+    "b": "#a8744c",
+    "d": "#6b4329",
+    "m": "#8f96a3",
+    "y": "#f5c542",
+    "Y": "#fff6c9",
+    "s": "#ffffff"
+   },
+   "frames": [
+    ["..............", "..............", "..............", ".OOOOOOOOOOOO.", "OllllllllllllO", "ObbbbbbbbbbbbO", "OmmmmmmmmmmmmO", "OdddddyydddddO", "OdddddyydddddO", "OddddddddddddO", "OddddddddddddO", ".OOOOOOOOOOOO.", ".............."],
+    ["..............", "..............", "..............", ".OOOOOOOOOOOO.", "OllllllllllllO", "ObbbbbbbbbbbbO", "OmmmmmmmmmmmmO", "OdddddyydddddO", "OdddddyydddddO", "OddddddddddddO", "OddddddddddddO", ".OOOOOOOOOOOO.", ".............."],
+    [".OOOOOOOOOOOO.", "OllllllllllllO", "ObbbbbbbbbbbbO", ".OOOOOOOOOOOO.", "OyyYyyyyYyyyyO", "OyyyyyyyyyyyyO", "OmmmmmmmmmmmmO", "OdddddyydddddO", "OdddddyydddddO", "OddddddddddddO", "OddddddddddddO", ".OOOOOOOOOOOO.", ".............."],
+    [".OOOOOOOOOOOO.", "OllllllllllllO", "ObbbbbbbbbbbbO", ".OOOOOOOOOOOO.", "OYysyyyYyysyyO", "OyyyyyYyyyyyyO", "OmmmmmmmmmmmmO", "OdddddyydddddO", "OdddddyydddddO", "OddddddddddddO", "OddddddddddddO", ".OOOOOOOOOOOO.", ".............."]
+   ],
+   "fps": 1.5,
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Cofre del tesoro"
+   }
+  },
+  {
+   "name": "deco.cristal",
+   "w": 9,
+   "h": 13,
+   "palette": {
+    "O": "#1a1423",
+    "c": "#9be8f5",
+    "C": "#3fb8d8",
+    "w": "#ffffff",
+    "m": "#5b5470"
+   },
+   "frames": [
+    ["....O....", "...OcO...", "..OcCcO..", ".OcCCCcO.", ".OcCwCcO.", ".OcCCCcO.", "..OcCcO..", "...OcO...", "....O....", ".........", "..OOOOO..", ".OmmmmmO.", ".OOOOOOO."],
+    [".........", "....O....", "...OcO...", "..OcCcO..", ".OcCCCcO.", ".OcwCCcO.", ".OcCCCcO.", "..OcCcO..", "...OcO...", "....O....", "..OOOOO..", ".OmmmmmO.", ".OOOOOOO."],
+    ["....O....", "...OcO...", ".wOcCcO..", ".OcCCCcO.", ".OcCCwcO.", ".OcCCCcO.", "..OcCcOw.", "...OcO...", "....O....", ".........", "..OOOOO..", ".OmmmmmO.", ".OOOOOOO."]
+   ],
+   "fps": 3,
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Cristal de guardado"
+   }
+  },
+  {
+   "name": "deco.arcade",
+   "w": 14,
+   "h": 20,
+   "palette": {
+    "O": "#1a1423",
+    "M": "#d64fa0",
+    "m": "#8a2f66",
+    "k": "#3b3346",
+    "K": "#4d4459",
+    "S": "#100e16",
+    "a": "#7ee787",
+    "p": "#ffd23f",
+    "s": "#ffffff",
+    "j": "#8f96a3",
+    "r": "#e5533d"
+   },
+   "frames": [
+    [".OOOOOOOOOOOO.", "OmMMMMMMMMMMmO", "OmMMMMMMMMMMmO", "OOOOOOOOOOOOOO", "OkkOOOOOOOOkkO", "OkkOSSSSSSOkkO", "OkkOSaSSSSOkkO", "OkkOSSSSSSOkkO", "OkkOSSSpSSOkkO", "OkkOOOOOOOOkkO", "OkkkkkkkkkkkkO", "OkkOOOOOOOOkkO", "OkkOjOOrOrOkkO", "OkkOOOOOOOOkkO", "OkkkkkkkkkkkkO", "OkkKKKKKKKKkkO", "OkkKKKKKKKKkkO", "OkkKKKKKKKKkkO", "OkkKKKKKKKKkkO", ".OOOOOOOOOOOO."],
+    [".OOOOOOOOOOOO.", "OmMMMMMMMMMMmO", "OmMMMMMMMMMMmO", "OOOOOOOOOOOOOO", "OkkOOOOOOOOkkO", "OkkOSSSSSSOkkO", "OkkOSSSSaSOkkO", "OkkOSSSsSSOkkO", "OkkOSSSpSSOkkO", "OkkOOOOOOOOkkO", "OkkkkkkkkkkkkO", "OkkOOOOOOOOkkO", "OkkOjOOrOrOkkO", "OkkOOOOOOOOkkO", "OkkkkkkkkkkkkO", "OkkKKKKKKKKkkO", "OkkKKKKKKKKkkO", "OkkKKKKKKKKkkO", "OkkKKKKKKKKkkO", ".OOOOOOOOOOOO."]
+   ],
+   "fps": 2,
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Máquina recreativa"
+   }
+  },
+  {
+   "name": "deco.bloque_hierba",
+   "w": 12,
+   "h": 12,
+   "palette": {
+    "O": "#1a1423",
+    "G": "#5aa83c",
+    "g": "#7fcf4a",
+    "d": "#8a5a2b",
+    "D": "#6b4329"
+   },
+   "frames": [
+    ["OOOOOOOOOOOO", "OgGGgGGgGGgO", "OGGGGGGGGGGO", "OGGdGGGdGGGO", "OdGdddGddddO", "OddddddddddO", "OdDddddDdddO", "OddddDddddDO", "OddddddddddO", "ODddddDddddO", "OddddddddddO", "OOOOOOOOOOOO"]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Bloque de tierra con hierba"
+   }
+  },
+  {
+   "name": "deco.espada_piedra",
+   "w": 12,
+   "h": 16,
+   "palette": {
+    "O": "#1a1423",
+    "y": "#d9a441",
+    "b": "#6b4329",
+    "w": "#d5d9e0",
+    "s": "#8f96a3",
+    "K": "#8a8699",
+    "k": "#6e6a7a",
+    "D": "#4a4656",
+    "g": "#ffffff"
+   },
+   "frames": [
+    [".....OO.....", "....OyyO....", "....ObbO....", "....ObbO....", "..OOOOOOOO..", "..OyyyyyyO..", "..OOOwsOOO..", "....OwsO....", "....OwsO....", "....OwsO....", ".OOOOwsOOOO.", "OKKKKwsKKKkO", "OKKkkkkkkkkO", "OkkkkkkkkkkO", "OkkkkDkkkkkO", "OOOOOOOOOOOO"],
+    [".....OO.....", "....OyyO....", "....ObbO....", "....ObbO....", "..OOOOOOOO..", "..OyyyyyyO..", "..OOOgsOOO..", "...gOgsO....", "....OwsOg...", "....OwsO....", ".OOOOwsOOOO.", "OKKKKwsKKKkO", "OKKkkkkkkkkO", "OkkkkkkkkkkO", "OkkkkDkkkkkO", "OOOOOOOOOOOO"]
+   ],
+   "fps": 1,
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Espada clavada en la piedra"
+   }
+  },
+  {
+   "name": "deco.pocion",
+   "w": 8,
+   "h": 12,
+   "palette": {
+    "O": "#1a1423",
+    "b": "#a8744c",
+    "w": "#dff4ff",
+    "P": "#d84d8e",
+    "p": "#ffb3d9"
+   },
+   "frames": [
+    ["..OOOO..", "..ObbO..", "..ObbO..", "..OwwO..", ".OwwwwO.", "OwwwwwwO", "OwPPPPwO", "OPPpPPPO", "OPPPPPPO", "OPpPPPPO", ".OPPPPO.", "..OOOO.."],
+    ["..OOOO..", "..ObbO..", "..ObbO..", "..OwwO..", ".OwwwwO.", "OwwwwwwO", "OwPpPPwO", "OPPPPPPO", "OPPPPpPO", "OPPPPPPO", ".OPPPPO.", "..OOOO.."]
+   ],
+   "fps": 2,
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Poción"
+   }
+  },
+  {
+   "name": "deco.anillo",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "y": "#f5c542",
+    "Y": "#fff1a8"
+   },
+   "frames": [
+    ["..OOOOO..", ".OyYYYyO.", "OyyO.OyyO", "OyO...OyO", "OyO...OyO", "OyO...OyO", "OyyO.OyyO", ".OyyyyyO.", "..OOOOO.."],
+    ["...OOO...", "..OyYyO..", "..OyOyO..", "..OyOyO..", "..OyOyO..", "..OyOyO..", "..OyOyO..", "..OyyyO..", "...OOO..."],
+    ["...OOO...", "...OyO...", "...OyO...", "...OYO...", "...OYO...", "...OyO...", "...OyO...", "...OyO...", "...OOO..."],
+    ["...OOO...", "..OyYyO..", "..OyOyO..", "..OyOyO..", "..OyOyO..", "..OyOyO..", "..OyOyO..", "..OyyyO..", "...OOO..."]
+   ],
+   "fps": 6,
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Anillo dorado"
+   }
+  },
+  {
+   "name": "deco.cartucho",
+   "w": 12,
+   "h": 12,
+   "palette": {
+    "O": "#1a1423",
+    "g": "#8f96a3",
+    "d": "#5b5470",
+    "B": "#79c0ff",
+    "G": "#5aa83c",
+    "y": "#ffd23f"
+   },
+   "frames": [
+    [".OOOOOOOOOO.", "OggggggggggO", "OgOOOOOOOOgO", "OgOBBBBBBOgO", "OgOBBBByBOgO", "OgOBBBBBBOgO", "OgOGGGGGGOgO", "OgOOOOOOOOgO", "OggggggggggO", "OgdgdgdgdgdO", "OggggggggggO", ".OOOOOOOOOO."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "deco",
+    "label": "Cartucho"
+   }
+  },
+  {
+   "name": "emoji.corazon",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "R": "#e5533d",
+    "r": "#ff9d8a",
+    "d": "#a8322a"
+   },
+   "frames": [
+    [".........", ".OO...OO.", "OrRO.ORRO", "ORRRORRRO", "ORRRRRRRO", ".ORRRRdO.", "..ORRdO..", "...OdO...", "....O...."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Corazón"
+   }
+  },
+  {
+   "name": "emoji.estrella",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "Y": "#ffd23f",
+    "y": "#fff6c9"
+   },
+   "frames": [
+    ["....O....", "...OyO...", "OOOOYOOOO", "OyYYYYYYO", ".OYYYYYO.", "..OYYYO..", ".OYYOYYO.", ".OYO.OYO.", ".OO...OO."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Estrella"
+   }
+  },
+  {
+   "name": "emoji.fuego",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "r": "#f0802a",
+    "Y": "#ffd23f",
+    "y": "#fff6c9",
+    "R": "#c4302b"
+   },
+   "frames": [
+    ["....O....", "...OrO...", "..OrrrO..", "..OrYrO..", ".OrYyYrO.", ".OrYyYrO.", "OrrYyYrrO", ".ORYYYRO.", "..OOOOO.."],
+    ["...O.....", "..OrO.O..", "..OrrOrO.", ".OrYrrrO.", ".OrYyYrO.", "OrrYyYrrO", "OrRYyYRrO", ".ORYYYRO.", "..OOOOO.."]
+   ],
+   "fps": 4,
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Fuego"
+   }
+  },
+  {
+   "name": "emoji.pulgar",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "Y": "#f5c542",
+    "y": "#fff1a8"
+   },
+   "frames": [
+    ["...OO....", "..OyYO...", "..OYYO...", "..OYYOOO.", "OOOYYYYYO", "OyYYYYYYO", "OyYYYYYYO", ".OYYYYYYO", "..OOOOOO."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Pulgar arriba"
+   }
+  },
+  {
+   "name": "emoji.cafe",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "s": "#c9ccd6",
+    "c": "#6b4329",
+    "w": "#e9f2f7"
+   },
+   "frames": [
+    ["..s.s.s..", ".s.s.s...", "..s.s.s..", "OOOOOO...", "OccccOOO.", "OwwwwO.O.", "OwwwwOOO.", ".OwwwO...", ".OOOOO..."],
+    [".s.s.s...", "..s.s.s..", ".s.s.s...", "OOOOOO...", "OccccOOO.", "OwwwwO.O.", "OwwwwOOO.", ".OwwwO...", ".OOOOO..."]
+   ],
+   "fps": 2,
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Café"
+   }
+  },
+  {
+   "name": "emoji.bicho",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "r": "#e5533d",
+    "k": "#3b3346"
+   },
+   "frames": [
+    [".O.....O.", "..O.O.O..", "..OOOOO..", ".OkkOkkO.", "OOrrOrrOO", ".OrkOkrO.", "OOrrOrrOO", ".OrrOrrO.", "..OOOOO.."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Bicho (bug)"
+   }
+  },
+  {
+   "name": "emoji.fiesta",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "y": "#ffd23f",
+    "r": "#e5533d",
+    "p": "#ffb3d9",
+    "b": "#79c0ff",
+    "g": "#7ee787"
+   },
+   "frames": [
+    [".p..y..b.", "...p...g.", "OO...y...", "OyyO.....", "OyryO..p.", ".OyryyO..", "..OyryyO.", "...OyryyO", "....OOOOO"],
+    ["..b.p..y.", ".g...b...", "OO.p...g.", "OyyO..y..", "OyryO....", ".OyryyO..", "..OyryyO.", "...OyryyO", "....OOOOO"]
+   ],
+   "fps": 3,
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Fiesta"
+   }
+  },
+  {
+   "name": "emoji.cohete",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "w": "#d5d9e0",
+    "b": "#79c0ff",
+    "r": "#e5533d",
+    "F": "#ffd23f",
+    "f": "#f0802a"
+   },
+   "frames": [
+    ["....O....", "...OwO...", "...OwO...", "..OwbwO..", "..OwwwO..", ".OrOwOrO.", ".OrOOOrO.", ".OO.F.OO.", "...fFf..."],
+    ["....O....", "...OwO...", "...OwO...", "..OwbwO..", "..OwwwO..", ".OrOwOrO.", ".OrOOOrO.", ".OO.f.OO.", "....F...."]
+   ],
+   "fps": 4,
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Cohete"
+   }
+  },
+  {
+   "name": "emoji.bombilla",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "y": "#ffd23f",
+    "Y": "#fff6c9",
+    "g": "#8f96a3"
+   },
+   "frames": [
+    ["..OOOOO..", ".OyyYyyO.", "OyyYYyyyO", "OyyYyyyyO", "OyyyyyyyO", ".OyyyyyO.", "..OgggO..", "..OgggO..", "...OOO..."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Bombilla"
+   }
+  },
+  {
+   "name": "emoji.calavera",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "w": "#e9f2f7",
+    "g": "#c9ccd6"
+   },
+   "frames": [
+    ["..OOOOO..", ".OwwwwgO.", "OwwwwwwgO", "OwOOwOOgO", "OwOOwOOgO", "OwwwwwwgO", ".OwOwOgO.", "..OwwgO..", "..OOOOO.."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Calavera"
+   }
+  },
+  {
+   "name": "emoji.cien",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "r": "#e5533d"
+   },
+   "frames": [
+    ["r.rrr.rrr", "r.r.r.r.r", "r.r.r.r.r", "r.r.r.r.r", "r.rrr.rrr", "O.OOO.OOO", "rrrrrrrrr", "OOOOOOOOO", "rrrrrrrrr"]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "100"
+   }
+  },
+  {
+   "name": "emoji.ojos",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "w": "#e9f2f7",
+    "k": "#2a2733"
+   },
+   "frames": [
+    [".........", ".OOO.OOO.", "OwwwOwwwO", "OwwkOwwkO", "OwkkOwkkO", "OwwwOwwwO", ".OOO.OOO.", ".........", "........."],
+    [".........", ".OOO.OOO.", "OwwwOwwwO", "OkwwOkwwO", "OkkwOkkwO", "OwwwOwwwO", ".OOO.OOO.", ".........", "........."]
+   ],
+   "fps": 1,
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Ojos"
+   }
+  },
+  {
+   "name": "emoji.risa",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "y": "#f5c542",
+    "w": "#e9f2f7",
+    "r": "#e5533d"
+   },
+   "frames": [
+    ["..OOOOO..", ".OyyyyyO.", "OyOyyyOyO", "OyyyyyyyO", "OyOOOOOyO", "OyOwwwOyO", "OyOrrrOyO", ".OyOOOyO.", "..OOOOO.."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Risa"
+   }
+  },
+  {
+   "name": "emoji.ok",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "g": "#4cc38a",
+    "w": "#ffffff"
+   },
+   "frames": [
+    [".........", "..OOOOO..", ".OgggggO.", "OgggggwgO", "OggggwggO", "OgwgwgggO", "OgggwgggO", ".OgggggO.", "..OOOOO.."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Visto bueno"
+   }
+  },
+  {
+   "name": "emoji.moneda",
+   "w": 9,
+   "h": 9,
+   "palette": {
+    "O": "#1a1423",
+    "Y": "#f5c542",
+    "y": "#fff1a8",
+    "d": "#b8860b"
+   },
+   "frames": [
+    ["..OOOOO..", ".OyYYYdO.", "OyYyYYYdO", "OYYyYYYdO", "OYYyYYYdO", "OYYYYYYdO", "OYYYYYddO", ".OYYYddO.", "..OOOOO.."]
+   ],
+   "meta": {
+    "place": "floor",
+    "kind": "emoji",
+    "label": "Moneda"
+   }
+  }
+ ]
+}
