@@ -11,7 +11,7 @@ export interface GrowCtx {
   cols: number;
   rows: number;
   rg: Rng;
-  /** tile is grass, not reserved, and at least one tile away from other offices */
+  /** tile may become a wing of office `oi`: free floor or a break pocket inside the building, below its facade, never a corridor */
   free(c: number, r: number, oi: number): boolean;
 }
 

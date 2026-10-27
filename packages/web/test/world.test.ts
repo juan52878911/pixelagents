@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  GY, TS, generateWorld, getStrategy, isHall, placementProblem, registerStrategy, relayout, signParts, strategyNames, walkableFn,
+  COMMON, GY, TS, commonProblem, generateWorld, getStrategy, isHall, placementProblem, registerStrategy, relayout, signParts, strategyNames, walkableFn,
   type DecorItem, type GroupInput, type OfficeGeom, type OfficeLayout, type WorldInput, type WorldLayout,
 } from '../src/world/index.js';
 
@@ -38,9 +38,11 @@ function dayKey(d: number): string {
   return t.toISOString().slice(0, 10);
 }
 
+/** Every door is reached from the lobby entry walking over corridor tiles only. */
 function connected(w: WorldLayout): boolean {
-  const path = new Set(w.path);
-  const start = w.plazaOk ? w.plaza[1] * w.cols + w.plaza[0] : w.path[0]!;
+  const corr = new Set(w.corridor);
+  const start = w.lobby.entry[1] * w.cols + w.lobby.entry[0];
+  if (!corr.has(start)) return w.offices.length === 0;
   const seen = new Set([start]);
   const q = [start];
   for (let i = 0; i < q.length; i++) {
@@ -49,10 +51,10 @@ function connected(w: WorldLayout): boolean {
       const cc = c + dc, rr = r + dr;
       if (cc < 0 || rr < 0 || cc >= w.cols) continue;
       const kk = rr * w.cols + cc;
-      if (path.has(kk) && !seen.has(kk)) { seen.add(kk); q.push(kk); }
+      if (corr.has(kk) && !seen.has(kk)) { seen.add(kk); q.push(kk); }
     }
   }
-  return w.offices.every((o) => o.doorTile[1] < 0 || seen.has(o.doorTile[1] * w.cols + o.doorTile[0]));
+  return w.offices.every((o) => seen.has(o.doorTile[1] * w.cols + o.doorTile[0]));
 }
 
 function geomOf(o: OfficeLayout, oi: number): OfficeGeom {
@@ -63,40 +65,67 @@ function geomOf(o: OfficeLayout, oi: number): OfficeGeom {
   };
 }
 
-/** Every invariant of a town (style of design/prototype/check-world.cjs). */
+/** Every invariant of the shared floor (style of design/prototype/check-world.cjs). */
 function check(w: WorldLayout): string[] {
   const errs: string[] = [];
   const mapW = w.cols * TS, mapH = GY + w.rows * TS;
-  const path = new Set(w.path);
+  const path = new Set(w.path), corr = new Set(w.corridor), common = new Set(w.common);
   const own = w.own;
   const at = (c: number, r: number): number => (own[r] && c >= 0 && c < w.cols ? own[r]![c]! : -1);
+  const K = (c: number, r: number): number => r * w.cols + c;
   if (w.rows < 38 || own.length !== w.rows) errs.push('filas');
-  for (const row of own) for (const v of row) if (v < -1 || v >= w.offices.length) errs.push('dueno invalido');
+  for (const row of own) for (const v of row) if ((v < 0 && v !== -1 && v !== COMMON) || v >= w.offices.length) errs.push('dueno invalido');
+  // shared floor bookkeeping: `common` = every COMMON tile, corridor ⊆ common, lobby is shared
+  for (let r = 0; r < w.rows; r++) for (let c = 0; c < w.cols; c++) if ((at(c, r) === COMMON) !== common.has(K(c, r))) errs.push('zona comun mal contada');
+  for (const k of w.corridor) if (!common.has(k)) errs.push('pasillo fuera de la zona comun');
+  const lb = w.lobby;
+  for (let r = lb.ty; r < lb.ty + lb.th; r++) for (let c = lb.tx; c < lb.tx + lb.tw; c++) if (at(c, r) !== COMMON || !corr.has(K(c, r))) errs.push('recepcion rota');
+  if (at(lb.doorTile[0], lb.doorTile[1]) !== -1 || !path.has(K(lb.doorTile[0], lb.doorTile[1]))) errs.push('entrada sin camino');
+  // one building: every non-grass tile in a single 4-connected component
+  {
+    const seen = new Set<number>(), q: number[] = [];
+    const s = K(lb.entry[0], lb.entry[1]);
+    seen.add(s); q.push(s);
+    for (let i = 0; i < q.length; i++) {
+      const k = q[i]!, c = k % w.cols, r = Math.floor(k / w.cols);
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const cc = c + dc, rr = r + dr, kk = K(cc, rr);
+        if (cc < 0 || rr < 0 || cc >= w.cols || rr >= w.rows || seen.has(kk) || at(cc, rr) === -1) continue;
+        seen.add(kk); q.push(kk);
+      }
+    }
+    let floor = 0;
+    for (let r = 0; r < w.rows; r++) for (let c = 0; c < w.cols; c++) if (at(c, r) !== -1) floor++;
+    if (seen.size !== floor) errs.push('la planta no es una sola');
+  }
   w.offices.forEach((o, oi) => {
     const nm = o.id;
     if (o.x < 0 || o.x + o.w > mapW || o.y < GY || o.y + o.h > mapH) errs.push(nm + ' fuera del mapa');
     for (let r = o.ty; r < o.ty + o.th - 1; r++) for (let c = o.tx; c < o.tx + o.tw; c++) if (at(c, r) !== oi) errs.push(nm + ' sala rota');
-    if (!path.has(o.doorTile[1] * w.cols + o.doorTile[0])) errs.push(nm + ' puerta sin camino');
-    if (at(o.doorTile[0], o.doorTile[1]) !== -1) errs.push(nm + ' puerta tapada');
+    // the door opens onto a corridor; the two rows above the hall are shared floor
+    if (!corr.has(K(o.doorTile[0], o.doorTile[1])) || at(o.doorTile[0], o.doorTile[1]) !== COMMON) errs.push(nm + ' puerta sin pasillo');
+    for (let r = o.ty - 2; r < o.ty; r++) for (let c = o.tx; c < o.tx + o.tw; c++) if (at(c, r) !== COMMON) errs.push(nm + ' fachada sin pasillo delante');
     if (o.door + 12 > o.w) errs.push(nm + ' puerta fuera de la fachada');
     if (5 + signParts(o.label, o.kind).width + 6 > o.door) errs.push(nm + ' cartel pisa la puerta');
     const owned = new Set<number>();
-    for (let r = 0; r < w.rows; r++) for (let c = 0; c < w.cols; c++) if (at(c, r) === oi) owned.add(r * w.cols + c);
-    if (o.tiles.length !== owned.size || o.tiles.some((t) => !owned.has(t[1] * w.cols + t[0]))) errs.push(nm + ' tiles no coinciden');
-    if (o.order.length !== owned.size || o.order.some((t) => !owned.has(t[1] * w.cols + t[0]))) errs.push(nm + ' orden no cubre la oficina');
-    // shape: 2×2 blocks, 4-connected to the hall, a tile of grass from other offices
+    for (let r = 0; r < w.rows; r++) for (let c = 0; c < w.cols; c++) if (at(c, r) === oi) owned.add(K(c, r));
+    if (o.tiles.length !== owned.size || o.tiles.some((t) => !owned.has(K(t[0], t[1])))) errs.push(nm + ' tiles no coinciden');
+    if (o.order.length !== owned.size || o.order.some((t) => !owned.has(K(t[0], t[1])))) errs.push(nm + ' orden no cubre la oficina');
+    // area follows the demand: the hall plus a bounded margin of wings
+    if (owned.size > o.tw * o.th * 1.9 + 12) errs.push(nm + ' demasiado grande para su demanda');
+    // shape: 2×2 blocks, 4-connected to the hall, wings never beside the facade
     const blk = (c: number, r: number): boolean => at(c, r) === oi && at(c + 1, r) === oi && at(c, r + 1) === oi && at(c + 1, r + 1) === oi;
     for (const [c, r] of o.tiles) {
       if (!isHall(geomOf(o, oi), c, r) && !(blk(c, r) || blk(c - 1, r) || blk(c, r - 1) || blk(c - 1, r - 1))) errs.push(nm + ' pico de 1 tile');
-      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const v = at(c + dc, r + dr); if (v !== -1 && v !== oi) errs.push(nm + ' pegada a otra oficina'); }
+      if (!isHall(geomOf(o, oi), c, r) && r < o.ty + 2) errs.push(nm + ' ala junto a la fachada');
     }
     const seen = new Set<number>(), q = [[o.tx, o.ty]];
-    seen.add(o.ty * w.cols + o.tx);
+    seen.add(K(o.tx, o.ty));
     for (let i = 0; i < q.length; i++) for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const c = q[i]![0]! + dc, r = q[i]![1]! + dr, k = r * w.cols + c;
+      const c = q[i]![0]! + dc, r = q[i]![1]! + dr, k = K(c, r);
       if (at(c, r) === oi && !seen.has(k)) { seen.add(k); q.push([c, r]); }
     }
-    if (seen.size !== owned.size) errs.push(nm + ' ala desconectada');
+    if (seen.size !== owned.size) errs.push(nm + ' ala desconectada (isla)');
     // furniture: inside, on floor, no overlap, against a wall, corridors free (the rules themselves)
     const g = geomOf(o, oi);
     if (!walkableFn(own, g, [])(o.entry[0], o.entry[1])) errs.push(nm + ' entrada bloqueada');
@@ -108,19 +137,32 @@ function check(w: WorldLayout): string[] {
     for (const s of o.capsules) if (s.dx < o.x + o.startX || s.dx + 34 > o.x + o.w - 24) errs.push(nm + ' capsula fuera de la sala');
     for (const z of o.zones) { const f = z.slots.filter((s) => !s.agent).length; if (f < 1 || f > 3) errs.push(nm + ' sin hueco libre'); }
     if (o.capsules.length) { const f = o.capsules.filter((s) => !s.agent).length; if (f < 1 || f > 3) errs.push(nm + ' capsulas sin hueco'); }
-    if (o.changed && o.doneAt < 0) errs.push(nm + ' cambiada sin obra');
     if (!o.changed && o.doneAt >= 0) errs.push(nm + ' obra sin cambio');
   });
-  if (!connected(w)) errs.push('puertas desconectadas de la red');
-  for (const k of w.path) if (at(k % w.cols, Math.floor(k / w.cols)) !== -1) errs.push('camino sobre una oficina');
-  for (const t of w.trees) if (at(t.c, t.r) !== -1 || path.has(t.r * w.cols + t.c)) errs.push('arbol sobre camino u oficina');
-  for (const b of w.bushes) if (at(b.c, b.r) !== -1 || path.has(b.r * w.cols + b.c)) errs.push('arbusto sobre camino u oficina');
-  const rev = new Set(w.build.reveal.filter((r) => r.kind === 'office').map((r) => `${r.x},${r.y}`));
-  for (const o of w.offices) for (const [c, r] of o.tiles) { const has = rev.has(`${c * TS},${GY + r * TS}`); if (has !== o.changed) errs.push(o.id + (has ? ' obra sin cambio' : ' tile sin obra')); }
+  if (!connected(w)) errs.push('puertas desconectadas de la recepcion');
+  // break pockets: furniture on shared non-corridor tiles, against a wall, no overlap
+  for (const d of w.commonDecor) { const p = commonProblem(own, corr, d, w.commonDecor); if (p) errs.push('mueble comun ' + d.id + ': ' + p); }
+  // outdoors: paths, trees, bushes and decor on grass only, never over a wall
+  for (const k of w.path) if (at(k % w.cols, Math.floor(k / w.cols)) !== -1) errs.push('camino sobre la planta');
+  const clear = (x: number, y: number, ww: number, hh: number): boolean => {
+    for (let r = Math.floor((y - GY) / TS); r <= Math.floor((y + hh - 1 - GY) / TS); r++) for (let c = Math.floor(x / TS); c <= Math.floor((x + ww - 1) / TS); c++) if (at(c, r) !== -1 || path.has(K(c, r))) return false;
+    return true;
+  };
+  for (const t of w.trees) if (!clear(t.x, t.y, 14, 18)) errs.push('arbol sobre camino o planta');
+  for (const b of w.bushes) if (!clear(b.x, b.y, 8, 6)) errs.push('arbusto sobre camino o planta');
+  const onBuilding = (x: number, y: number, ww: number, hh: number): boolean => {
+    for (let r = Math.floor((y - GY) / TS); r <= Math.floor((y + hh - 1 - GY) / TS); r++) for (let c = Math.floor(x / TS); c <= Math.floor((x + ww - 1) / TS); c++) if (at(c, r) !== -1) return true;
+    return false;
+  };
+  for (const d of w.outdoor) if (onBuilding(d.x, d.y, d.w, d.h)) errs.push('decoracion exterior sobre la planta');
   return [...new Set(errs)];
 }
 
-/** Offices present in both layouts and not rebuilt in `b` must be identical in `b` (`except`: the ones whose input changed). */
+/**
+ * Offices present in both layouts and not in `except` (the ones whose input changed) must stand where
+ * they were: same hall, door, strategy and desks; their furniture and tiles may only shrink (a neighbour
+ * claimed a wing), never move or grow.
+ */
 function stable(a: WorldLayout, b: WorldLayout, except: string[] = []): string[] {
   const errs: string[] = [];
   const newEpoch = a.epoch !== b.epoch;
@@ -128,10 +170,14 @@ function stable(a: WorldLayout, b: WorldLayout, except: string[] = []): string[]
     const pb = b.offices.find((o) => o.id === pa.id);
     if (!pb) continue;
     if (except.includes(pa.id)) { if (!newEpoch && pb.changed !== pa.changed) errs.push(pa.id + ' cambio sin epoca nueva'); continue; }
-    if (pb.changed && newEpoch) { errs.push(pa.id + ' reconstruida sin motivo'); continue; }
     if ([pa.tx, pa.ty, pa.tw, pa.th, pa.door, pa.strategy].join() !== [pb.tx, pb.ty, pb.tw, pb.th, pb.door, pb.strategy].join()) errs.push(pa.id + ' se movio');
-    if (JSON.stringify(pa.tiles) !== JSON.stringify(pb.tiles)) errs.push(pa.id + ' cambio de forma');
-    if (JSON.stringify([pa.decor, pa.wallDeco, pa.windows, pa.poster]) !== JSON.stringify([pb.decor, pb.wallDeco, pb.windows, pb.poster])) errs.push(pa.id + ' cambio de muebles');
+    const was = new Set(pa.tiles.map((t) => t.join()));
+    if (pb.tiles.some((t) => !was.has(t.join()))) errs.push(pa.id + ' crecio sin motivo');
+    if (!pb.changed && JSON.stringify(pa.tiles) !== JSON.stringify(pb.tiles)) errs.push(pa.id + ' cambio de forma');
+    if (pb.changed && newEpoch && pb.tiles.length === pa.tiles.length) errs.push(pa.id + ' reconstruida sin motivo');
+    const had = new Set(pa.decor.map((d) => JSON.stringify(d)));
+    if (pb.decor.some((d) => !had.has(JSON.stringify(d)))) errs.push(pa.id + ' mueble nuevo sin motivo');
+    if (JSON.stringify([pa.wallDeco, pa.windows, pa.poster]) !== JSON.stringify([pb.wallDeco, pb.windows, pb.poster])) errs.push(pa.id + ' cambio de fachada');
     for (const za of pa.zones) {
       const zb = pb.zones.find((z) => z.id === za.id);
       if (!zb) continue;
@@ -247,14 +293,33 @@ describe('world generator', () => {
         w = relayout(w, { seed: day, groups, decor: DECOR });
         errs = [...check(w), ...stable(before, w, office ? [office.id] : [])];
         if (errs.length) fails.push(`seed${seed} paso${step} (${label}): ${errs.slice(0, 3).join(' | ')}`);
-        // every tile that stops belonging to its office is demolished; every new tile is built
-        const bk = (o: OfficeLayout) => new Set(o.tiles.map((t) => t.join()));
-        for (const po of before.offices) {
-          const no = w.offices.find((o) => o.id === po.id);
-          if (w.epoch === before.epoch || (no && !no.changed)) continue;
+        // every tile that stops belonging to its office is demolished (crew of the old owner); every
+        // tile new to an office or to the shared floor is built (crew of the new owner); nothing else
+        if (w.epoch !== before.epoch) {
+          const bk = (o: OfficeLayout) => new Set(o.tiles.map((t) => t.join()));
           const dem = new Set(w.build.demolish.filter((r) => r.kind === 'office').map((r) => `${r.x / TS},${(r.y - GY) / TS}`));
-          for (const t of bk(po)) if (!dem.has(t)) { fails.push(`seed${seed} paso${step}: ${po.id} tile ${t} sin demoler`); break; }
-          if (!w.build.crews.some((c) => c.kind === 'demolish' && c.id === po.id)) fails.push(`seed${seed} paso${step}: ${po.id} sin cuadrilla de derribo`);
+          const rev = new Set(w.build.reveal.filter((r) => r.kind === 'office').map((r) => `${r.x / TS},${(r.y - GY) / TS}`));
+          const expectRev = new Set<string>();
+          for (const po of before.offices) {
+            const no = w.offices.find((o) => o.id === po.id);
+            const now = no ? bk(no) : new Set<string>();
+            const lostT = [...bk(po)].filter((t) => !now.has(t));
+            for (const t of lostT) if (!dem.has(t)) { fails.push(`seed${seed} paso${step}: ${po.id} tile ${t} sin demoler`); break; }
+            if (lostT.length && !w.build.crews.some((c) => c.kind === 'demolish' && c.id === po.id)) fails.push(`seed${seed} paso${step}: ${po.id} sin cuadrilla de derribo`);
+            if (no && lostT.length && !no.changed) fails.push(`seed${seed} paso${step}: ${po.id} perdio tiles sin marcarse`);
+          }
+          for (const no of w.offices) {
+            const po = before.offices.find((o) => o.id === no.id);
+            const was = po ? bk(po) : new Set<string>();
+            const gainedT = no.tiles.map((t) => t.join()).filter((t) => !was.has(t));
+            for (const t of gainedT) expectRev.add(t);
+            if (gainedT.length && (!no.changed || no.doneAt < 0 || !w.build.crews.some((c) => c.kind === 'build' && c.id === no.id))) fails.push(`seed${seed} paso${step}: ${no.id} gano tiles sin obra`);
+            if (!gainedT.length && no.doneAt >= 0) fails.push(`seed${seed} paso${step}: ${no.id} obra sin tiles nuevos`);
+          }
+          const wasCommon = new Set(before.common.map((k) => `${k % before.cols},${Math.floor(k / before.cols)}`));
+          for (const k of w.common) { const t = `${k % w.cols},${Math.floor(k / w.cols)}`; if (!wasCommon.has(t)) expectRev.add(t); }
+          for (const t of expectRev) if (!rev.has(t)) { fails.push(`seed${seed} paso${step}: tile ${t} sin obra`); break; }
+          for (const t of rev) if (!expectRev.has(t)) { fails.push(`seed${seed} paso${step}: obra en ${t} sin cambio`); break; }
         }
         if (w.epoch !== before.epoch) expect(w.build.buildEnd).toBeGreaterThan(0);
         if (JSON.stringify(relayout(w, { seed: day, groups, decor: DECOR })) !== JSON.stringify(w)) fails.push(`seed${seed} paso${step}: relayout no es idempotente`);
@@ -277,7 +342,15 @@ describe('world generator', () => {
     expect(stable(w0, w1, ['a'])).toEqual([]);
     expect(a1.changed).toBe(true);
     expect(a1.tw).toBeGreaterThan(a0.tw);
-    expect(w1.build.crews.map((c) => c.kind).sort()).toEqual(['build', 'demolish']);
+    expect(w1.build.crews.filter((c) => c.id === 'a').map((c) => c.kind).sort()).toEqual(['build', 'demolish']);
+    // alone on the floor it claims from its own frontier: the old hall stays inside the new one
+    const solo = generateWorld({ seed: '2026-02-02', groups: [groups[0]!], decor: DECOR });
+    const solo1 = relayout(solo, { seed: '2026-02-02', groups: [gs[0]!], decor: DECOR });
+    const s0 = solo.offices[0]!, s1 = solo1.offices[0]!;
+    expect(check(solo1)).toEqual([]);
+    expect([s1.tx, s1.ty, s1.door]).toEqual([s0.tx, s0.ty, s0.door]);
+    expect(s1.tw).toBeGreaterThan(s0.tw);
+    for (let r = s0.ty; r < s0.ty + s0.th; r++) for (let c = s0.tx; c < s0.tx + s0.tw; c++) expect(solo1.own[r]![c]).toBe(0);
     // shrink back: the office is rebuilt smaller in the same place
     const w2 = relayout(w1, { seed: '2026-02-02', groups, decor: DECOR });
     const a2 = w2.offices.find((o) => o.id === 'a')!;
@@ -285,6 +358,78 @@ describe('world generator', () => {
     expect(a2.changed).toBe(true);
     expect(a2.tw).toBeLessThan(a1.tw);
     expect([a2.tx, a2.ty]).toEqual([a1.tx, a1.ty]);
+    expect(a2.tiles.length).toBeLessThan(a1.tiles.length);
+    expect(w2.build.crews.some((c) => c.kind === 'demolish' && c.id === 'a')).toBe(true);
+  });
+
+  it('hysteresis: one agent in and out again does not reorder anything', () => {
+    for (let set = 0; set < 8; set++) {
+      const groups = randomGroups(set + 300, 3 + (set % 4));
+      const input: WorldInput = { seed: dayKey(set), groups, decor: DECOR };
+      const w0 = generateWorld(input);
+      const target = groups[set % groups.length]!;
+      const w1 = relayout(w0, { ...input, groups: addAgent(groups, target.id, 0, 'yoyo') });
+      const w2 = relayout(w1, { ...input, groups });
+      expect(check(w1)).toEqual([]);
+      expect(check(w2)).toEqual([]);
+      expect(stable(w0, w1, [target.id])).toEqual([]);
+      // back to the previous input: no new work at all
+      expect(w2.epoch).toBe(w1.epoch);
+      expect(w2.own).toEqual(w1.own);
+      expect(stable(w1, w2)).toEqual([]);
+      // and the third arrival of the same agent finds the same desk
+      const w3 = relayout(w2, { ...input, groups: addAgent(groups, target.id, 0, 'yoyo') });
+      expect(w3.epoch).toBe(w2.epoch);
+      expect(JSON.stringify(w3.offices)).toBe(JSON.stringify(w1.offices));
+    }
+  });
+
+  it('claims space from its frontier: free floor, then a neighbour wing, then outward', () => {
+    const groups: GroupInput[] = [
+      { id: 'a', kind: 'office', label: 'A', zones: [{ id: 'z', label: 'Z', agents: ['a1'] }] },
+      { id: 'b', kind: 'office', label: 'B', zones: [{ id: 'z', label: 'Z', agents: ['b1'] }] },
+      { id: 'c', kind: 'lab', label: 'C', zones: [], pods: ['c1', 'c2'] },
+    ];
+    let w = generateWorld({ seed: '2026-04-04', groups, decor: DECOR });
+    let gs = groups;
+    const halls = () => Object.fromEntries(w.offices.map((o) => [o.id, [o.tx, o.ty, o.tw, o.th].join()]));
+    const h0 = halls();
+    for (let i = 2; i < 12; i++) {
+      gs = addAgent(gs, 'a', 0, `a${i}`);
+      const before = w;
+      w = relayout(w, { seed: '2026-04-04', groups: gs, decor: DECOR });
+      expect(check(w)).toEqual([]);
+      expect(stable(before, w, ['a'])).toEqual([]);
+    }
+    const a = w.offices.find((o) => o.id === 'a')!;
+    expect(a.tiles.length).toBeGreaterThanOrEqual(a.tw * a.th - a.tw);
+    // neighbours keep their halls where they were (they may have lost wings)
+    const h1 = halls();
+    expect(h1.b).toBe(h0.b);
+    expect(h1.c).toBe(h0.c);
+    // the building is still one floor and every door is reachable
+    expect(check(w)).toEqual([]);
+  });
+
+  it('incremental steps stay fast (p95 < 40 ms)', () => {
+    const times: number[] = [];
+    for (let seed = 0; seed < 20; seed++) {
+      const rnd = lcg(seed * 17 + 3);
+      let groups = randomGroups(seed + 500, 4 + Math.floor(rnd() * 8));
+      let w = generateWorld({ seed: dayKey(seed), groups, decor: DECOR });
+      for (let step = 0; step < 5; step++) {
+        const office = groups[Math.floor(rnd() * groups.length)]!;
+        groups = step % 2 ? addAgent(groups, office.id, 0, `p${seed}-${step}`) : addZone(groups, office.id, `pz${seed}-${step}`, ['x', 'y']);
+        if (office.pods && step % 2 === 0) groups = addAgent(groups, office.id, 0, `q${seed}-${step}`);
+        const t0 = performance.now();
+        w = relayout(w, { seed: dayKey(seed), groups, decor: DECOR });
+        times.push(performance.now() - t0);
+      }
+    }
+    times.sort((a, b) => a - b);
+    const p95 = times[Math.floor(times.length * 0.95)]!;
+    console.log(`world incremental: p50=${times[Math.floor(times.length / 2)]!.toFixed(1)}ms p95=${p95.toFixed(1)}ms max=${times[times.length - 1]!.toFixed(1)}ms`);
+    expect(p95).toBeLessThan(40);
   });
 
   it('generates in < 80 ms p95 with 12 offices', () => {

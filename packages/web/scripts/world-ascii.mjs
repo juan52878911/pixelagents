@@ -19,12 +19,14 @@ const groups = Array.from({ length: nOff }, (_, i) => {
       ] };
 });
 const w = generateWorld({ seed, groups, decor: [] });
+const corridor = new Set(w.corridor);
 const grid = [];
 for (let r = 0; r < w.rows; r++) {
   const line = [];
   for (let c = 0; c < w.cols; c++) {
     const o = w.own[r][c];
-    line.push(o >= 0 ? String.fromCharCode(65 + o) : '.');
+    const k = r * w.cols + c;
+    line.push(o >= 0 ? String.fromCharCode(65 + o) : o === -2 ? (corridor.has(k) ? '=' : '-') : '.');
   }
   grid.push(line);
 }

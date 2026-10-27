@@ -3,6 +3,8 @@
 export const TS = 8; // tile size in px
 export const GY = 24; // top margin in px (HUD strip)
 export const DEFAULT_COLS = 60;
+/** `own` value of a shared-floor tile (corridor, lobby or break space); -1 is grass. */
+export const COMMON = -2;
 
 export interface DecorItem {
   id: string;
@@ -136,16 +138,36 @@ export interface OfficeLayout {
   doneAt: number;
 }
 
+/** The reception: a wall band (2 rows) with the entrance door and a floor band (2 rows) seeding the corridors. */
+export interface Lobby {
+  tx: number; ty: number; tw: number; th: number;
+  x: number; y: number; w: number; h: number;
+  /** px offset of the entrance door from x, and its tile (outside, above the wall) */
+  door: number;
+  doorTile: Tile;
+  /** first floor tile under the door (seed of the corridor network) */
+  entry: Tile;
+}
+
 export interface WorldLayout {
   seed: string;
   season: string;
   cols: number;
   rows: number;
-  /** owner office index per tile, -1 = grass */
+  /** owner office index per tile, -1 = grass, COMMON (-2) = shared floor */
   own: number[][];
   offices: OfficeLayout[];
+  lobby: Lobby;
+  /** structural shared tiles (lobby floor, door strips, routes): always walkable, never claimed */
+  corridor: TileKey[];
+  /** every shared tile (corridor + break pockets) */
+  common: TileKey[];
+  /** furniture of the break pockets (plants, sofas…) */
+  commonDecor: PlacedDecor[];
+  /** forecourt in front of the entrance (3×3) */
   plaza: Tile;
   plazaOk: boolean;
+  /** outdoor path tiles (forecourt + way to the map edge) */
   path: TileKey[];
   trees: { c: number; r: number; kind: number; x: number; y: number }[];
   bushes: { c: number; r: number; x: number; y: number }[];

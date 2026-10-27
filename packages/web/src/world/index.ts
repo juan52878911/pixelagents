@@ -1,10 +1,11 @@
-export { generateWorld } from './generate.js';
+export { generateWorld, makeLobby, commonProblem, LOBBY_TY, INSIDE_R0 } from './generate.js';
 export { relayout } from './stable.js';
 export { registerStrategy, getStrategy, strategyNames } from './strategies.js';
 export type { StrategyFn, GrowCtx, OfficeDraft } from './strategies.js';
 export { SEASONS, seasonFromSeed } from './seasons.js';
-export { TS, GY, DEFAULT_COLS } from './types.js';
+export { TS, GY, DEFAULT_COLS, COMMON } from './types.js';
 export type * from './types.js';
-export { edgeMask, tilesOf, shapeUp, reach, labelGrass, N, E, S, W } from './grid.js';
+export { edgeMask, tilesOf, shapeUp, reach, labelGrass, ownerAt, N, E, S, W } from './grid.js';
+export { accrete, smooth, hallDist } from './territory.js';
 export { placementProblem, walkableFn, footprint, isWallTile, isHall, type OfficeGeom } from './furniture.js';
 export { signParts } from './generate.js';

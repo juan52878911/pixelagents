@@ -120,10 +120,10 @@ export interface ItemSize { id: string; w: number; h: number }
 
 /**
  * Places furniture in the hall band (2-4 items) and the wings (1 per ~9 tiles, max 5) following the
- * rules. Deterministic for a given rng.
+ * rules, on top of `existing` items (kept from the previous layout). Deterministic for a given rng.
  */
-export function planFurniture(own: Own, g: OfficeGeom, rg: Rng, pick: () => ItemSize, hallCount: number): PlacedDecor[] {
-  const out: PlacedDecor[] = [];
+export function planFurniture(own: Own, g: OfficeGeom, rg: Rng, pick: () => ItemSize, hallCount: number, existing: readonly PlacedDecor[] = []): PlacedDecor[] {
+  const out: PlacedDecor[] = [...existing];
   const tiles: Tile[] = [];
   for (let r = 0; r < own.length; r++) for (let c = 0; c < (own[0]?.length ?? 0); c++) if (own[r]![c] === g.oi) tiles.push([c, r]);
   const hallBand = tiles.filter(([c, r]) => isItemBand(g, c, r) && !isGauge(g, c, r));
@@ -136,6 +136,7 @@ export function planFurniture(own: Own, g: OfficeGeom, rg: Rng, pick: () => Item
     return true;
   };
   for (let n = hallCount, tries = 0; n > 0 && hallBand.length && tries < 40; tries++) if (tryAt(rg.pick(hallBand), pick())) n--;
-  for (let m = Math.min(5, Math.ceil(wing.length / 9)), tries = 0; m > 0 && wing.length && tries < 60; tries++) if (tryAt(rg.pick(wing), pick())) m--;
+  const inWing = existing.filter((d) => !isHall(g, Math.floor(d.x / TS), footprint(d).r)).length;
+  for (let m = Math.min(5, Math.ceil(wing.length / 9)) - inWing, tries = 0; m > 0 && wing.length && tries < 60; tries++) if (tryAt(rg.pick(wing), pick())) m--;
   return out;
 }

@@ -46,9 +46,13 @@ export function centralPlaza(cands: Tile[], doors: Tile[]): Tile | null {
   return best;
 }
 
-/** Cheapest route from (sc, sr) to any tile of `path` over grass; returns the tiles including both ends. */
-export function makeRouter(own: Own, cols: number, rows: number, cost: (k: number) => number, path: Set<number>) {
+/**
+ * Cheapest route from (sc, sr) to any tile of `path`; returns the tiles including both ends.
+ * `passable(c, r)` says which tiles may carry the route (default: grass).
+ */
+export function makeRouter(own: Own, cols: number, rows: number, cost: (k: number) => number, path: Set<number>, passable?: (c: number, r: number) => boolean) {
   const N = cols * rows;
+  const ok = passable ?? ((c: number, r: number): boolean => own[r]![c] === -1);
   return (sc: number, sr: number): number[] => {
     const dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N);
     const hd: number[] = [], hk: number[] = [];
@@ -94,7 +98,7 @@ export function makeRouter(own: Own, cols: number, rows: number, cost: (k: numbe
       const c = k % cols, r = (k / cols) | 0;
       for (const [dc, dr] of D4) {
         const cc = c + dc, rr = r + dr;
-        if (cc < 0 || rr < 0 || cc >= cols || rr >= rows || own[rr]![cc] !== -1) continue;
+        if (cc < 0 || rr < 0 || cc >= cols || rr >= rows || !ok(cc, rr)) continue;
         const kk = rr * cols + cc, nd = d0 + cost(kk);
         if (nd < dist[kk]!) { dist[kk] = nd; prev[kk] = k; push(nd, kk); }
       }

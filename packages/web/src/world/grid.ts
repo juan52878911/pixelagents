@@ -100,13 +100,14 @@ export function reach(own: Own, oi: number, start: Tile, walkable: (c: number, r
   return seen;
 }
 
-/** Connected components of grass tiles (-1 for non-grass). */
-export function labelGrass(own: Own, cols: number, rows: number): Int32Array {
+/** Connected components of the tiles where `pred` holds (default: grass); -1 elsewhere. */
+export function labelGrass(own: Own, cols: number, rows: number, pred?: (v: number) => boolean): Int32Array {
   const comp = new Int32Array(cols * rows).fill(-1);
+  const is = pred ?? ((v: number): boolean => v === -1);
   let id = 0;
   const stack: number[] = [];
   for (let s = 0; s < comp.length; s++) {
-    if (comp[s] !== -1 || own[Math.floor(s / cols)]![s % cols] !== -1) continue;
+    if (comp[s] !== -1 || !is(own[Math.floor(s / cols)]![s % cols]!)) continue;
     comp[s] = id; stack.push(s);
     while (stack.length) {
       const k = stack.pop()!, c = k % cols, r = (k / cols) | 0;
@@ -114,7 +115,7 @@ export function labelGrass(own: Own, cols: number, rows: number): Int32Array {
         const cc = c + dc, rr = r + dr;
         if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) continue;
         const kk = rr * cols + cc;
-        if (comp[kk] === -1 && own[rr]![cc] === -1) { comp[kk] = id; stack.push(kk); }
+        if (comp[kk] === -1 && is(own[rr]![cc]!)) { comp[kk] = id; stack.push(kk); }
       }
     }
     id++;

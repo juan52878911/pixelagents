@@ -1,36 +1,47 @@
 /**
- * Incremental town generator. Every office is drafted from its content (zones, agents, pods) and
- * placed on the tile grid; given the previous layout, offices that still fit keep their tiles,
- * furniture and roads, offices that outgrow their hall are rebuilt in place (or relocated when
- * boxed in), and offices that disappear are demolished. Randomness is hashed per office / per tile
- * from the daily seed, never drawn sequentially, so adding or removing one office does not reshuffle
- * the others. See docs/world.md.
+ * Incremental generator of the shared floor. One building: a lobby (reception with the entrance)
+ * seeds a corridor network; every office is a territory hanging off a corridor through its door,
+ * sharing walls with its neighbours. Halls are sized by content (zones, agents, pods); territories
+ * grow from the hall by competitive accretion until their area matches their demand; corridors are
+ * carved first (Prim-style tree of cheapest routes), so offices fill the cells between them;
+ * enclosed leftovers become break pockets. Given the previous layout, offices that still fit keep
+ * their tiles, offices that grew claim from their frontier (free space, pockets, neighbours' wings,
+ * then outward), offices that shrank release tiles, departed offices are demolished. Randomness is
+ * hashed per office / per tile from the daily seed, never drawn sequentially, so adding or removing
+ * one office does not reshuffle the others. See docs/world.md.
  */
 import { FONT_4x6, FONT_5x7, fit, measure } from '../engine/fonts.js';
-import { type OfficeGeom, planFurniture, walkableFn } from './furniture.js';
-import { type Own, floodOrder, ownerAt, reach, resize, shapeUp, tilesOf } from './grid.js';
-import { centralPlaza, makeRouter, plazaCandidates, tileNoise } from './paths.js';
+import { type OfficeGeom, placementProblem, planFurniture, walkableFn } from './furniture.js';
+import { type Own, D4, floodOrder, labelGrass, ownerAt, reach, resize, shapeUp, tilesOf } from './grid.js';
+import { makeRouter, tileNoise } from './paths.js';
 import { makeRng, shuffle, strHash } from './rng.js';
 import type { Rng } from './rng.js';
 import { SEASONS, seasonFromSeed } from './seasons.js';
 import { getStrategy, POOL_LAB, POOL_OFFICE } from './strategies.js';
 import type { GrowCtx } from './strategies.js';
-import { DEFAULT_COLS, GY, TS } from './types.js';
+import { accrete, smooth, type Territory } from './territory.js';
+import { COMMON, DEFAULT_COLS, GY, TS } from './types.js';
 import type {
-  Crew, DecorItem, FloorKind, GroupInput, OfficeLayout, PlacedDecor, RevealItem, Slot, Tile, WorldInput, WorldLayout, ZoneLayout,
+  Crew, DecorItem, FloorKind, GroupInput, Lobby, OfficeLayout, PlacedDecor, RevealItem, Slot, Tile, WorldInput, WorldLayout, ZoneLayout,
 } from './types.js';
 
 export const SLOT_PITCH = 30;
 export const ROW_PITCH = 40; // px between desk rows (5 tiles)
 const BASE_TH = 13;
 const MARGIN = 3; // columns kept free on each side of the map for offices
-const EDGE = 2; // outermost columns where nothing grows, so side highways never close
+const EDGE = 2; // outermost columns where nothing grows
 const GROW_W = 2, GROW_H = 2; // free tiles kept right/below a new hall so it can grow in place
 const SHRINK_W = 8; // tiles of spare width before an office is rebuilt smaller
 const MAX_OFFICES = 12;
 /** Free desks a zone may keep before its office is re-laid (1 is always kept for the next arrival). */
 export const MAX_SPARE = 3;
 const SIGN_MAX = 108; // px for the label of a sign
+export const LOBBY_TY = 6, LOBBY_W = 8, LOBBY_H = 4; // rows ty..ty+1 wall with the entrance, ty+2..ty+3 floor
+/** first row of the floor: corridors and offices live from here down; above is outdoors */
+export const INSIDE_R0 = LOBBY_TY + 2;
+const OFFICE_TY0 = LOBBY_TY + 4; // first row a hall may start on (its door strip sits on the lobby floor rows)
+const STRIP = 2; // corridor rows above every hall (door strip)
+const WING_REACH = 4; // max Chebyshev distance a wing may reach from its hall
 const DECO_SIZE: Record<string, [number, number]> = {
   plant: [8, 12], sofa: [34, 11], cooler: [7, 17], table: [16, 10], shelf: [12, 16], lamp: [7, 16],
 };
@@ -49,6 +60,8 @@ interface Draft {
   doorTile: Tile; entry: Tile;
   prev: OfficeLayout | null; prevIdx: number;
   mode: 'keep' | 'renovate' | 'new';
+  /** wings may still grow (new / grown offices) */
+  grow: boolean;
   rg: Rng;
 }
 
@@ -94,7 +107,7 @@ function makeDraft(g: GroupInput, cols: number, seed: string, prev: OfficeLayout
   const o: Draft = {
     id: g.id, kind: g.kind, label: g.label, isLab, floor, wall: WALLS[floor], racks, signLabel: sign.label, signEnd, door, deskRows: 1,
     strategy: '', zones: [], capsules: [], startX: 12 + (racks ? racks * 16 + 4 : 0), deskX1: 0, needTw: 0, needTh: BASE_TH,
-    tx: 0, ty: 0, tw: 0, th: BASE_TH, x: 0, y: 0, w: 0, h: 0, doorTile: [0, 0], entry: [0, 0], prev, prevIdx, mode: 'new', rg,
+    tx: 0, ty: 0, tw: 0, th: BASE_TH, x: 0, y: 0, w: 0, h: 0, doorTile: [0, 0], entry: [0, 0], prev, prevIdx, mode: 'new', grow: true, rg,
   };
   const maxCur = (cols - 2 * MARGIN) * TS - 30;
   const startX = o.startX;
@@ -157,6 +170,13 @@ function setHall(o: Draft, tx: number, ty: number, tw: number, th: number): void
   o.entry = [dc, ty + 2];
 }
 
+/** The lobby: centred, `LOBBY_W` wide, wall rows ty..ty+1 (entrance door in the middle) and floor rows ty+2..ty+3. */
+export function makeLobby(cols: number): Lobby {
+  const tx = Math.floor((cols - LOBBY_W) / 2), ty = LOBBY_TY;
+  const dc = tx + (LOBBY_W >> 1) - 1;
+  return { tx, ty, tw: LOBBY_W, th: LOBBY_H, x: tx * TS, y: GY + ty * TS, w: LOBBY_W * TS, h: LOBBY_H * TS, door: (dc - tx) * TS - 2, doorTile: [dc, ty - 1], entry: [dc, ty + 2] };
+}
+
 export function generateWorld(input: WorldInput, prev?: WorldLayout | null): WorldLayout {
   const cols = Math.max(24, input.cols ?? DEFAULT_COLS);
   const seedN = strHash(input.seed);
@@ -171,30 +191,61 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
     return makeDraft(g, cols, input.seed, pi >= 0 ? P!.offices[pi]! : null, pi, pi < 0);
   });
 
-  // ---- ownership grid: keep what fits, rebuild what grew, place the rest ----
+  // ---- grid: lobby, previous corridors, then offices (keep / claim in place / place anew) ----
   const own: Own = [];
   let rows = Math.max(38, P ? P.rows : 0);
   resize(own, cols, rows);
-  const reserved = new Set<number>();
   const K = (c: number, r: number): number => r * cols + c;
-  const grass = (c: number, r: number): boolean => c >= EDGE && c < cols - EDGE && r >= 0 && ownerAt(own, c, r) === -1 && !reserved.has(K(c, r));
   const ensureRows = (n: number): void => { if (n > rows) { rows = n; resize(own, cols, rows); } };
-  /** hall rect + door tiles + growth margin, all grass (tiles already owned by `self` are fine) */
-  const hallFree = (tx: number, ty: number, tw: number, th: number, self: number, margin: boolean): boolean => {
-    if (tx - 1 < EDGE || tx + tw + 1 > cols - EDGE || ty < 2) return false;
+  const lobby = makeLobby(cols);
+  /** shared tiles nothing may claim: lobby, door strips, routes (this layout) and the previous corridors (until re-routed) */
+  const structural = new Set<number>();
+  for (let r = lobby.ty; r < lobby.ty + lobby.th; r++) for (let c = lobby.tx; c < lobby.tx + lobby.tw; c++) { own[r]![c] = COMMON; structural.add(K(c, r)); }
+  const prevCorr = new Set<number>();
+  if (P) for (const k of P.corridor) { const c = k % cols, r = Math.floor(k / cols); if (r < rows && own[r]![c] === -1) { own[r]![c] = COMMON; structural.add(k); prevCorr.add(k); } }
+  /** where wings may grow: never the side channels (cols 1..MARGIN-1 and the mirror) corridors run along */
+  const inside = (c: number, r: number): boolean => c >= MARGIN && c < cols - MARGIN && r >= INSIDE_R0 && r < rows;
+  /** where corridors may run: the floor plus the side channels */
+  const routable = (c: number, r: number): boolean => c >= 1 && c < cols - 1 && r >= INSIDE_R0 && r < rows;
+  /** a wing tile of a standing office: a corridor may cut through it (the office is pushed) */
+  const isWing = (c: number, r: number): boolean => { const v = ownerAt(own, c, r); return v >= 0 && !inHallOf(v, c, r); };
+  /** grass or a break pocket (shared but not structural) */
+  const spare = (c: number, r: number): boolean => { const v = ownerAt(own, c, r); return v === -1 || (v === COMMON && !structural.has(K(c, r))); };
+  const inHallOf = (oi: number, c: number, r: number): boolean => { const o = offs[oi]!; return c >= o.tx && c < o.tx + o.tw && r >= o.ty && r < o.ty + o.th; };
+  const pushed = new Set<number>();
+  /**
+   * May a hall stand at (tx, ty, tw, th)? Rect tiles: own, spare, or (pushable) a wing of a standing
+   * office; the door strip above: anything but another office; the growth margin: no other office.
+   */
+  /** column of the hard obstacle (an office or corridor tile inside the rect) the last `hallFree` hit, or -1 */
+  let blockC = -1;
+  const hallFree = (tx: number, ty: number, tw: number, th: number, self: number, margin: boolean, pushable: boolean): boolean => {
+    blockC = -1;
+    if (tx < MARGIN || tx + tw > cols - MARGIN || ty < OFFICE_TY0) return false;
     ensureRows(ty + th + GROW_H + 2);
-    const x1 = tx + tw + 1 + (margin ? GROW_W : 0), y1 = ty + th + 1 + (margin ? GROW_H : 0);
-    for (let r = ty - 2; r < y1; r++) for (let c = tx - 1; c < x1; c++) {
-      if (c < 0 || c >= cols) return false;
-      const o = ownerAt(own, c, r);
-      if (o === self) continue;
-      if (o !== -1 || reserved.has(K(c, r))) return false;
+    for (let r = ty - STRIP; r < ty + th + (margin ? GROW_H : 0); r++) for (let c = tx; c < tx + tw + (margin ? GROW_W : 0); c++) {
+      if (c >= cols) return false;
+      const v = ownerAt(own, c, r);
+      if (v === self) continue;
+      const core = r >= ty && r < ty + th && c < tx + tw;
+      if (!core) { if (v >= 0) return false; continue; }
+      if (spare(c, r)) continue;
+      if (pushable && v >= 0 && v !== self && offs[v]!.mode === 'keep' && !inHallOf(v, c, r)) continue;
+      blockC = c;
+      return false;
     }
     return true;
   };
   const claimHall = (o: Draft, oi: number): void => {
-    for (let r = o.ty; r < o.ty + o.th; r++) for (let c = o.tx; c < o.tx + o.tw; c++) own[r]![c] = oi;
-    reserved.add(K(o.doorTile[0], o.ty - 1)); reserved.add(K(o.doorTile[0], o.ty - 2));
+    for (let r = o.ty; r < o.ty + o.th; r++) for (let c = o.tx; c < o.tx + o.tw; c++) {
+      const v = own[r]![c]!;
+      if (v >= 0 && v !== oi) pushed.add(v);
+      own[r]![c] = oi;
+    }
+    for (let r = o.ty - STRIP; r < o.ty; r++) for (let c = o.tx; c < o.tx + o.tw; c++) { own[r]![c] = COMMON; structural.add(K(c, r)); }
+  };
+  const dropTiles = (oi: number, keep?: (c: number, r: number) => boolean): void => {
+    for (const [c, r] of tilesOf(own, oi)) if (!keep || !keep(c, r)) own[r]![c] = -1;
   };
   // 1. offices that keep their geometry (copy every tile, wings included)
   offs.forEach((o, oi) => {
@@ -203,77 +254,174 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
     const fits = o.needTw <= p.tw && o.needTh <= p.th;
     const shrink = o.needTw <= p.tw - SHRINK_W || o.needTh < p.th;
     if (!fits || shrink) return;
-    o.mode = 'keep';
+    o.mode = 'keep'; o.grow = false;
     o.strategy = p.strategy;
     setHall(o, p.tx, p.ty, p.tw, p.th);
     o.door = p.door; o.doorTile = p.doorTile; o.entry = p.entry;
     for (const [c, r] of p.tiles) { ensureRows(r + 1); own[r]![c] = oi; }
-    reserved.add(K(o.doorTile[0], o.ty - 1)); reserved.add(K(o.doorTile[0], o.ty - 2));
+    for (let r = o.ty - STRIP; r < o.ty; r++) for (let c = o.tx; c < o.tx + o.tw; c++) if (own[r]![c] === -1 || own[r]![c] === COMMON) { own[r]![c] = COMMON; structural.add(K(c, r)); }
   });
-  // 2. offices rebuilt in place when their old spot still has room (desks compacted)
+  // 2. offices that outgrew their hall claim from their frontier (own wings, free space, pockets,
+  //    neighbours' wings, the outdoors); offices with spare room release it. Same door when possible.
   offs.forEach((o, oi) => {
     const p = o.prev;
     if (!p || o.mode === 'keep') return;
     offs[oi] = makeDraft(groups[oi]!, cols, input.seed, p, o.prevIdx, true);
     o = offs[oi]!;
-    // reclaim the old tiles first so the new hall may reuse them
-    for (const [c, r] of p.tiles) if (ownerAt(own, c, r) === -1) own[r]![c] = oi;
-    setHall(o, p.tx, p.ty, o.needTw, o.needTh);
-    if (hallFree(o.tx, o.ty, o.tw, o.th, oi, false)) {
-      o.mode = 'renovate';
-      for (const [c, r] of p.tiles) own[r]![c] = -1;
+    o.strategy = p.strategy;
+    for (const [c, r] of p.tiles) { ensureRows(r + 1); if (own[r]![c] === -1 || (own[r]![c] === COMMON && !structural.has(K(c, r)))) own[r]![c] = oi; }
+    const anchors: [number, number][] = [[p.tx, p.ty], [p.tx + p.tw - o.needTw, p.ty]];
+    let ok = false;
+    for (const [tx, ty] of anchors) {
+      if (!hallFree(tx, ty, o.needTw, o.needTh, oi, false, true)) continue;
+      const wider = o.needTw > p.tw || o.needTh > p.th;
+      o.mode = 'renovate'; o.grow = wider;
+      // a shrunk hall releases its old hall tiles outside the new rect; old wings stay (trimmed later)
+      const oldHall = (c: number, r: number): boolean => c >= p.tx && c < p.tx + p.tw && r >= p.ty && r < p.ty + p.th;
+      setHall(o, tx, ty, o.needTw, o.needTh);
+      dropTiles(oi, (c, r) => !oldHall(c, r) || inHallOf(oi, c, r));
+      if (tx === p.tx && o.needTw >= p.tw) { o.door = p.door; o.doorTile = p.doorTile; o.entry = p.entry; }
       claimHall(o, oi);
-    } else {
-      for (const [c, r] of p.tiles) if (ownerAt(own, c, r) === oi) own[r]![c] = -1;
-      o.prev = null; o.prevIdx = -1; o.mode = 'new';
+      ok = true;
+      break;
     }
+    if (!ok) { dropTiles(oi); o.prev = null; o.prevIdx = -1; o.mode = 'new'; o.grow = true; }
   });
-  // 3. newcomers and relocated offices: first spot that fits, scanning from the top
-  offs.forEach((o, oi) => {
-    if (o.mode !== 'new') return;
-    const ltr = o.rg.f() < 0.5, jitter = o.rg.i(0, 2);
-    let placed = false;
-    for (let ty = 2 + jitter; !placed; ty++) {
-      ensureRows(ty + o.needTh + GROW_H + 3);
-      for (let i = 0; i <= cols - 2 * MARGIN - o.needTw && !placed; i++) {
-        const tx = ltr ? MARGIN + i : cols - MARGIN - o.needTw - i;
-        if (hallFree(tx, ty, o.needTw, o.needTh, -2, true)) { setHall(o, tx, ty, o.needTw, o.needTh); claimHall(o, oi); placed = true; }
-      }
-      if (ty > 4000) throw new Error('world: no room for an office');
-    }
-  });
-
-  // ---- wings: grow the rebuilt offices with their strategy, then make the shapes valid ----
-  let maxBottom = 0;
-  for (const o of offs) maxBottom = Math.max(maxBottom, o.ty + o.th);
-  ensureRows(Math.max(38, maxBottom + 12));
-  const free = (c: number, r: number, oi: number): boolean => {
-    if (!grass(c, r) || r >= rows) return false;
-    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-      const v = ownerAt(own, c + dc, r + dr);
-      if (v !== -1 && v !== oi) return false;
-    }
-    return true;
-  };
-  const wanted = (input.strategies ?? []).filter((s) => getStrategy(s));
-  offs.forEach((o, oi) => {
-    if (o.mode === 'keep') return;
-    o.strategy = o.rg.pick(wanted.length ? wanted : o.isLab ? POOL_LAB : POOL_OFFICE);
-    const cx: GrowCtx = { own, cols, rows, rg: o.rg, free };
-    getStrategy(o.strategy)!(o, oi, cx);
-    // valid shape: 2×2 blocks, connected to the hall, every room reachable from the entry
+  // pushed neighbours keep a valid shape
+  const validate = (oi: number): void => {
+    const o = offs[oi]!;
     for (let pass = 0; pass < 6; pass++) {
       shapeUp(own, oi, o);
       const g = geomOf(o, oi), walk = walkableFn(own, g, []);
       const seen = reach(own, oi, o.entry, walk);
       let cut = 0;
-      for (const [c, r] of tilesOf(own, oi)) {
-        const hall = c >= o.tx && c < o.tx + o.tw && r >= o.ty && r < o.ty + o.th;
-        if (!hall && walk(c, r) && !seen.has(K(c, r))) { own[r]![c] = -1; cut++; }
-      }
+      for (const [c, r] of tilesOf(own, oi)) if (!inHallOf(oi, c, r) && walk(c, r) && !seen.has(K(c, r))) { own[r]![c] = -1; cut++; }
       if (!cut) break;
     }
+  };
+
+  // ---- corridors: every door joins the network (lobby floor + previous corridors + routes so far)
+  //      through the cheapest route over shared or free floor; new offices are placed and routed
+  //      one by one, a spot whose door cannot be reached is banned and the scan goes on ----
+  const network = new Set<number>();
+  for (let r = lobby.ty + 2; r < lobby.ty + lobby.th; r++) for (let c = lobby.tx; c < lobby.tx + lobby.tw; c++) network.add(K(c, r));
+  const routeTiles = new Set<number>();
+  const passable = (c: number, r: number): boolean => { const v = own[r]![c]!; return routable(c, r) && (v === -1 || v === COMMON || isWing(c, r)); };
+  const cost = (k: number): number => {
+    const c = k % cols, r = Math.floor(k / cols), v = own[r]![c]!;
+    return prevCorr.has(k) || network.has(k) ? 0.25 : v === COMMON ? 0.5 : v >= 0 ? 4 : 1 + tileNoise(seedN, k);
+  };
+  /** tiles a corridor could reach from the network right now (placement pre-check) */
+  const reachableNow = (): Set<number> => {
+    const seen = new Set<number>(network), q = [...network];
+    for (let h = 0; h < q.length; h++) {
+      const k = q[h]!, c = k % cols, r = Math.floor(k / cols);
+      for (const [dc, dr] of D4) { const cc = c + dc, rr = r + dr; if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) continue; const kk = K(cc, rr); if (!seen.has(kk) && passable(cc, rr)) { seen.add(kk); q.push(kk); } }
+    }
+    return seen;
+  };
+  const routeDoor = (o: Draft): boolean => {
+    const route = makeRouter(own, cols, rows, cost, network, passable)(o.doorTile[0], o.doorTile[1]);
+    const end = route[route.length - 1]!;
+    if (!network.has(end)) return false;
+    const take = (k: number): void => { network.add(k); routeTiles.add(k); structural.add(k); own[Math.floor(k / cols)]![k % cols] = COMMON; };
+    // two tiles wide: the tile beside each fresh step (east of a vertical step, south of a horizontal one)
+    const sides: number[] = [];
+    route.forEach((k, i) => {
+      const c = k % cols, r = Math.floor(k / cols);
+      if (own[r]![c] === -1) {
+        const n = route[i + 1] ?? route[i - 1] ?? k;
+        const vertical = n % cols === c;
+        // horizontal runs widen upward (away from the halls under the strips), vertical ones eastward
+        const opts: Tile[] = vertical ? [[c + 1, r], [c - 1, r]] : [[c, r - 1], [c, r + 1]];
+        for (const [sc, sr] of opts) if (routable(sc, sr) && own[sr]![sc] === -1) { sides.push(K(sc, sr)); break; }
+      }
+    });
+    for (const k of [...route, ...sides]) { const v = own[Math.floor(k / cols)]![k % cols]!; if (v >= 0) pushed.add(v); take(k); }
+    return true;
+  };
+  for (const o of offs) if (o.mode !== 'new' && !routeDoor(o)) { dropTiles(offs.indexOf(o)); o.prev = null; o.prevIdx = -1; o.mode = 'new'; o.grow = true; }
+  // 3. newcomers and relocated offices: first spot that fits, scanning from the top
+  offs.forEach((o, oi) => {
+    if (o.mode !== 'new') return;
+    const ltr = o.rg.f() < 0.5, jitter = o.rg.i(0, 2);
+    const banned = new Set<number>();
+    const reach0 = reachableNow();
+    const stripOpen = (tx: number, ty: number, tw: number): boolean => { for (let r = ty - STRIP; r < ty; r++) for (let c = tx; c < tx + tw; c++) if (reach0.has(K(c, r))) return true; return false; };
+    for (let attempt = 0; attempt < 8; attempt++) {
+      let placed = false;
+      for (let ty = OFFICE_TY0 + jitter; !placed; ty++) {
+        ensureRows(ty + o.needTh + GROW_H + 3);
+        for (let i = 0; i <= cols - 2 * MARGIN - o.needTw && !placed; i++) {
+          const tx = ltr ? MARGIN + i : cols - MARGIN - o.needTw - i;
+          if (banned.has(K(tx, ty))) continue;
+          if (!hallFree(tx, ty, o.needTw, o.needTh, -99, true, false)) {
+            // no rect holding the obstacle's column can stand here: jump past it
+            if (blockC >= 0) i = ltr ? Math.max(i, blockC - MARGIN) : Math.max(i, cols - MARGIN - blockC - 1);
+            continue;
+          }
+          if (!stripOpen(tx, ty, o.needTw)) continue;
+          setHall(o, tx, ty, o.needTw, o.needTh); claimHall(o, oi); placed = true;
+        }
+        if (ty > 4000) throw new Error('world: no room for an office');
+      }
+      if (routeDoor(o)) return;
+      banned.add(K(o.tx, o.ty));
+      for (let r = o.ty - STRIP; r < o.ty; r++) for (let c = o.tx; c < o.tx + o.tw; c++) if (!network.has(K(c, r)) && !prevCorr.has(K(c, r))) { own[r]![c] = -1; structural.delete(K(c, r)); }
+      dropTiles(oi);
+    }
+    throw new Error('world: no reachable spot for an office');
   });
+  // structural floor from here on: lobby, routes and the door strips; the previous corridors nobody
+  // routes through any more are plain floor again (pockets or grass)
+  structural.clear();
+  for (let r = lobby.ty; r < lobby.ty + lobby.th; r++) for (let c = lobby.tx; c < lobby.tx + lobby.tw; c++) structural.add(K(c, r));
+  for (const k of network) structural.add(k);
+  for (const o of offs) for (let r = o.ty - STRIP; r < o.ty; r++) for (let c = o.tx; c < o.tx + o.tw; c++) { own[r]![c] = COMMON; structural.add(K(c, r)); }
+  for (const v of pushed) validate(v);
+
+  // ---- territories: wings sprout with the office's strategy, then accrete in competition until
+  //      the area matches the demand; a cellular pass fills notches; shapes are made valid ----
+  let maxBottom = 0;
+  for (const o of offs) maxBottom = Math.max(maxBottom, o.ty + o.th);
+  ensureRows(Math.max(38, maxBottom + 12));
+  const claimable = (c: number, r: number, oi: number): boolean => inside(c, r) && r >= offs[oi]!.ty + 2 && !structural.has(K(c, r)) && spare(c, r);
+  const wanted = (input.strategies ?? []).filter((s) => getStrategy(s));
+  const terr: Territory[] = [];
+  offs.forEach((o, oi) => {
+    if (!o.grow) return;
+    if (!o.strategy || o.mode === 'new') o.strategy = o.rg.pick(wanted.length ? wanted : o.isLab ? POOL_LAB : POOL_OFFICE);
+    const cx: GrowCtx = { own, cols, rows, rg: o.rg, free: claimable };
+    getStrategy(o.strategy)!(o, oi, cx);
+    const frac = 0.25 + o.rg.f() * 0.35;
+    terr.push({ oi, hall: o, target: Math.min(40, Math.round(o.tw * o.th * frac)), reach: WING_REACH });
+  });
+  accrete(own, terr, claimable, seedN);
+  for (const t of terr) smooth(own, t.oi, claimable);
+  offs.forEach((o, oi) => { if (o.mode !== 'keep' || pushed.has(oi)) validate(oi); });
+
+  // ---- pockets: enclosed leftovers are shared break space; a pocket enclosed by one office alone
+  //      (no corridor touching it) goes to that office ----
+  const isOutside = (c: number, r: number): boolean => r < INSIDE_R0 || c < EDGE || c >= cols - EDGE || r >= rows - 1;
+  const settlePockets = (giveBack: boolean): number[] => {
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (own[r]![c] === COMMON && !structural.has(K(c, r))) own[r]![c] = -1;
+    const comp = labelGrass(own, cols, rows);
+    const outside = new Set<number>();
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (isOutside(c, r) && comp[K(c, r)]! >= 0) outside.add(comp[K(c, r)]!);
+    const byComp = new Map<number, Tile[]>();
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const id = comp[K(c, r)]!; if (id >= 0 && !outside.has(id)) { const l = byComp.get(id) ?? []; l.push([c, r]); byComp.set(id, l); } }
+    const touched: number[] = [];
+    for (const tiles of byComp.values()) {
+      const owners = new Set<number>();
+      let corridor = false;
+      for (const [c, r] of tiles) for (const [dc, dr] of D4) { const v = ownerAt(own, c + dc, r + dr); if (v >= 0) owners.add(v); else if (v === COMMON) corridor = true; }
+      if (giveBack && !corridor && owners.size === 1) { const oi = [...owners][0]!; for (const [c, r] of tiles) own[r]![c] = oi; touched.push(oi); }
+      else for (const [c, r] of tiles) own[r]![c] = COMMON;
+    }
+    return touched;
+  };
+  const got = settlePockets(true);
+  if (got.length) { for (const oi of new Set(got)) validate(oi); settlePockets(false); }
   {
     let mr = 0;
     for (let r = 0; r < rows; r++) if (own[r]!.some((v) => v !== -1)) mr = r;
@@ -281,106 +429,128 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
     resize(own, cols, rows);
   }
   const tilesByOffice = offs.map((_, oi) => tilesOf(own, oi));
+  const corridor: number[] = [], common: number[] = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (own[r]![c] === COMMON) { const k = K(c, r); common.push(k); if (structural.has(k)) corridor.push(k); }
 
-  // ---- plaza and roads ----
-  const doors = offs.map((o) => o.doorTile);
-  const cands = plazaCandidates(own, cols, rows, doors);
-  const candKeys = new Set(cands.map((t) => K(t[0], t[1])));
-  const plazaOk = cands.length > 0;
-  let plaza: Tile;
-  if (plazaOk) plaza = P && P.plazaOk && candKeys.has(K(P.plaza[0], P.plaza[1])) ? P.plaza : centralPlaza(cands, doors)!;
-  else plaza = offs.length ? [offs[0]!.doorTile[0], Math.max(0, offs[0]!.doorTile[1])] : [1, 1];
+  // ---- outdoors: forecourt, the way to the map edge, trees in groves (blue-noise), bushes ----
+  const plaza: Tile = [lobby.doorTile[0] - 1, lobby.ty - 4];
+  const plazaOk = true;
   const path = new Set<number>(), ptiles: number[] = [];
   const addPath = (k: number): void => { if (!path.has(k)) { path.add(k); ptiles.push(k); } };
-  if (plazaOk) for (let dr = 0; dr < 3; dr++) for (let dc = 0; dc < 3; dc++) addPath(K(plaza[0] + dc, plaza[1] + dr));
-  else addPath(K(plaza[0], plaza[1]));
+  for (let dr = 0; dr < 3; dr++) for (let dc = 0; dc < 3; dc++) addPath(K(plaza[0] + dc, plaza[1] + dr));
+  addPath(K(lobby.doorTile[0], lobby.doorTile[1]));
   const prevPath = new Set<number>(P && P.rows === rows ? P.path : []);
   if (P && P.rows !== rows) for (const k of P.path) { const c = k % P.cols, r = Math.floor(k / P.cols); if (r < rows) prevPath.add(K(c, r)); }
-  const route = makeRouter(own, cols, rows, (k) => (prevPath.has(k) ? 0.25 : 1 + tileNoise(seedN, k)), path);
-  for (const o of offs) {
-    const dt = o.doorTile;
-    if (dt[1] < 0) continue;
-    for (const k of route(dt[0], dt[1])) addPath(k);
+  {
+    const grass = (c: number, r: number): boolean => own[r]![c] === -1;
+    const route = makeRouter(own, cols, rows, (k) => (prevPath.has(k) ? 0.25 : 1 + tileNoise(seedN, k)), path, grass);
+    const fromLeft = (seedN & 1) === 0;
+    for (const k of route(fromLeft ? 0 : cols - 1, 3)) addPath(k);
   }
-
-  // ---- trees, bushes, outdoor decor: per-tile hashes, a tile of grass around roads and walls ----
-  const near = (c: number, r: number, d: number): boolean => {
-    for (let dr = -d; dr <= d; dr++) for (let dc = -d; dc <= d; dc++) {
-      const cc = c + dc, rr = r + dr;
-      if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) continue;
-      if (own[rr]![cc] !== -1 || path.has(K(cc, rr)) || reserved.has(K(cc, rr))) return true;
+  const clear = (x: number, y: number, w: number, h: number): boolean => {
+    const c0 = Math.floor(x / TS), c1 = Math.floor((x + w - 1) / TS), r0 = Math.floor((y - GY) / TS), r1 = Math.floor((y + h - 1 - GY) / TS);
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      if (r < 0 || c < 0 || c >= cols || r >= rows) return false;
+      if (own[r]![c] !== -1 || path.has(K(c, r))) return false;
     }
-    return false;
+    return true;
   };
   const th = (salt: number, c: number, r: number): number => Math.floor(tileNoise(seedN ^ Math.imul(salt, 0x85ebca6b), K(c, r)) * 400);
+  const grove = (c: number, r: number): boolean => tileNoise(seedN ^ 0x5bd1e995, K(c >> 2, r >> 2)) > 1.45;
   const trees: WorldLayout['trees'] = [], bushes: WorldLayout['bushes'] = [];
   for (let r = 2; r < rows - 1; r++) for (let c = 0; c < cols - 2; c++) {
-    const h = th(1, c, r);
-    if (h % 24 !== 0) continue;
-    if (near(c, r, 1) || near(c + 1, r, 1) || near(c, r - 1, 0)) continue;
+    const h = th(1, c, r), every = grove(c, r) ? 9 : 30;
+    if (h % every !== 0) continue;
+    const x = c * TS - 3, y = GY + r * TS - 10;
+    if (!clear(x, y, 14, 18)) continue;
     if (trees.some((q) => Math.abs(q.c - c) < 3 && Math.abs(q.r - r) < 3)) continue;
-    trees.push({ c, r, kind: Math.floor(h / 24) % 3, x: c * TS - 3, y: GY + r * TS - 10 });
+    trees.push({ c, r, kind: Math.floor(h / every) % 3, x, y });
   }
   for (let r = 1; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) {
     const h = th(2, c, r);
     if (h % 22 !== 0) continue;
-    if (near(c, r, 0) || trees.some((q) => Math.abs(q.c - c) < 2 && Math.abs(q.r - r) < 2)) continue;
-    bushes.push({ c, r, x: c * TS + Math.floor(h / 22) % 3, y: GY + r * TS + 1 + Math.floor(h / 66) % 3 });
+    const x = c * TS + Math.floor(h / 22) % 3, y = GY + r * TS + 1 + Math.floor(h / 66) % 3;
+    if (!clear(x, y, 8, 6) || trees.some((q) => Math.abs(q.c - c) < 2 && Math.abs(q.r - r) < 2)) continue;
+    bushes.push({ c, r, x, y });
   }
   const floorDecor = input.decor.filter((d) => d.place === 'floor');
   const wallDecor = input.decor.filter((d) => d.place === 'wall');
   const outdoor: PlacedDecor[] = [];
-  if (floorDecor.length && plazaOk) {
+  if (floorDecor.length) {
     const d = floorDecor[th(3, plaza[0], plaza[1]) % floorDecor.length]!;
     outdoor.push({ id: d.id, x: plaza[0] * TS + 12 - (d.w >> 1), y: GY + plaza[1] * TS + 20 - d.h, w: d.w, h: d.h });
   }
   if (floorDecor.length) for (let r = 2; r < rows - 2 && outdoor.length < 4; r++) for (let c = 1; c < cols - 3 && outdoor.length < 4; c++) {
     const h = th(4, c, r);
-    if (h % 150 !== 0 || near(c, r, 1) || near(c + 1, r, 1) || trees.some((q) => Math.abs(q.c - c) < 3 && Math.abs(q.r - r) < 3)) continue;
+    if (h % 150 !== 0) continue;
     const d = floorDecor[Math.floor(h / 150) % floorDecor.length]!;
-    outdoor.push({ id: d.id, x: c * TS, y: GY + r * TS + 8 - d.h, w: d.w, h: d.h });
+    const x = c * TS, y = GY + r * TS + 8 - d.h;
+    if (!clear(x - 2, y - 2, d.w + 4, d.h + 4) || trees.some((q) => Math.abs(q.c - c) < 3 && Math.abs(q.r - r) < 3)) continue;
+    outdoor.push({ id: d.id, x, y, w: d.w, h: d.h });
   }
 
-  // ---- finish offices: wall features, furniture (kept offices keep theirs) ----
+  // ---- finish offices: wall features, furniture (standing offices keep what still stands) ----
   const features = offs.map((o, oi): { windows: number[]; poster: number | null; wallDeco: PlacedDecor[]; decor: PlacedDecor[] } => {
-    if (o.mode === 'keep' && o.prev) return { windows: o.prev.windows, poster: o.prev.poster, wallDeco: o.prev.wallDeco, decor: o.prev.decor };
-    const ft = { windows: [] as number[], poster: null as number | null, wallDeco: [] as PlacedDecor[], decor: [] as PlacedDecor[] };
-    planWall(o, o.rg, wallDecor, ft);
+    const p = o.prev;
+    const sameFront = !!p && p.tw === o.tw && p.door === o.door && p.tx === o.tx;
+    const ft = { windows: sameFront ? p!.windows : [] as number[], poster: sameFront ? p!.poster : null as number | null, wallDeco: sameFront ? p!.wallDeco : [] as PlacedDecor[], decor: [] as PlacedDecor[] };
+    if (!sameFront) planWall(o, o.rg, wallDecor, ft);
+    const g = geomOf(o, oi);
+    if (p) for (const d of p.decor) if (!placementProblem(own, g, d, ft.decor)) ft.decor.push(d);
+    if (o.mode === 'keep' && !pushed.has(oi)) return ft;
     const basic = o.racks ? ['plant', 'lamp', 'shelf'] : o.isLab ? ['plant', 'lamp', 'cooler'] : ['plant', 'sofa', 'cooler', 'table', 'shelf', 'lamp'];
     const size = (id: string): [number, number] => DECO_SIZE[id] ?? ((): [number, number] => { const d = floorDecor.find((p) => p.id === id); return d ? [d.w, d.h] : [8, 8]; })();
     const pick = () => { const id = floorDecor.length && o.rg.f() < 0.55 ? o.rg.pick(floorDecor).id : o.rg.pick(basic); const s = size(id); return { id, w: s[0], h: s[1] }; };
-    ft.decor = planFurniture(own, geomOf(o, oi), o.rg, pick, o.rg.i(2, 4));
+    const want = o.rg.i(2, 4);
+    if (o.mode !== 'keep') ft.decor = planFurniture(own, g, o.rg, pick, Math.max(0, want - ft.decor.length), ft.decor);
     return ft;
   });
+  const commonDecor = planCommonDecor(own, cols, rows, structural, seedN, P ? P.commonDecor : [], floorDecor);
 
-  // ---- timeline: demolish what stood before, then build what changed, then roads and nature ----
+  // ---- timeline: every tile whose content changed is demolished (old art shown until then) and
+  //      built by the crew of its new owner; corridors first, then offices, then roads and nature ----
+  const catPrev = (c: number, r: number): string => { if (!P || r >= P.rows) return 'g'; const v = P.own[r]![c]!; return v >= 0 ? 'o:' + P.offices[v]!.id : v === COMMON ? 'c' : 'g'; };
+  const catNow = (c: number, r: number): string => { const v = own[r]![c]!; return v >= 0 ? 'o:' + offs[v]!.id : v === COMMON ? 'c' : 'g'; };
+  const lost = new Map<string, Tile[]>(), gained = new Map<string, Tile[]>();
+  for (let r = 0; r < Math.max(rows, P ? P.rows : 0); r++) for (let c = 0; c < cols; c++) {
+    const a = catPrev(c, r), b = r < rows ? catNow(c, r) : 'g';
+    if (a === b) continue;
+    if (a !== 'g') { const l = lost.get(a) ?? []; l.push([c, r]); lost.set(a, l); }
+    if (b !== 'g') { const l = gained.get(b) ?? []; l.push([c, r]); gained.set(b, l); }
+  }
   const reveal: RevealItem[] = [], demolish: RevealItem[] = [], crews: Crew[] = [];
-  let t = 0;
+  let t = 0, k = 0;
+  const prevEntry = (id: string): Tile => (id === 'c' ? lobby.entry : P?.offices.find((o) => o.id === id.slice(2))?.entry ?? [0, 0]);
+  for (const [id, tiles] of lost) {
+    const start = 0.1 + k * 0.2, dur = 0.4 + tiles.length * 0.003;
+    const order = orderFrom(tiles, prevEntry(id));
+    order.forEach((tl, i) => demolish.push({ kind: 'office', x: tl[0] * TS, y: GY + tl[1] * TS, w: TS, h: TS, time: start + (i / Math.max(1, order.length)) * dur }));
+    crews.push({ id: id === 'c' ? '@common' : id.slice(2), kind: 'demolish', order, start, dur });
+    t = Math.max(t, start + dur + 0.3);
+    k++;
+  }
   if (P) {
-    const gone = P.offices.filter((po) => { const o = offs.find((x) => x.id === po.id); return !o || o.mode !== 'keep'; });
-    gone.forEach((po, k) => {
-      const start = 0.1 + k * 0.2, dur = 0.4 + po.tiles.length * 0.003;
-      const order = orderFrom(po.tiles, po.entry);
-      order.forEach((tl, i) => demolish.push({ kind: 'office', x: tl[0] * TS, y: GY + tl[1] * TS, w: TS, h: TS, time: start + (i / Math.max(1, order.length)) * dur }));
-      crews.push({ id: po.id, kind: 'demolish', order, start, dur });
-      t = Math.max(t, start + dur + 0.3);
-    });
-    for (const k of P.path) { const c = k % P.cols, r = Math.floor(k / P.cols); if (!path.has(K(c, r)) || r >= rows) demolish.push({ kind: 'path', x: c * TS, y: GY + r * TS, w: TS, h: TS, time: 0 }); }
+    for (const kk of P.path) { const c = kk % P.cols, r = Math.floor(kk / P.cols); if (!path.has(K(c, r)) || r >= rows) demolish.push({ kind: 'path', x: c * TS, y: GY + r * TS, w: TS, h: TS, time: 0 }); }
     for (const tr of P.trees) if (!trees.some((q) => q.c === tr.c && q.r === tr.r)) demolish.push({ kind: 'tree', x: tr.x, y: tr.y, w: 14, h: 18, time: 0 });
     for (const b of P.bushes) if (!bushes.some((q) => q.c === b.c && q.r === b.r)) demolish.push({ kind: 'bush', x: b.x, y: b.y, w: 8, h: 6, time: 0 });
     for (const d of P.outdoor) if (!outdoor.some((q) => q.x === d.x && q.y === d.y && q.id === d.id)) demolish.push({ kind: 'outdoor', x: d.x, y: d.y, w: d.w, h: d.h, time: 0 });
   }
   const timing = offs.map(() => ({ start: -1, dur: 0, done: -1 }));
   const orders = offs.map((o, oi) => floodOrder(own, oi, [o.doorTile[0], o.ty]));
-  let k = 0;
-  offs.forEach((o, oi) => {
-    if (o.mode === 'keep') return;
-    const order = orders[oi]!;
+  k = 0;
+  const buildCrew = (id: string, tiles: Tile[], from: Tile): { start: number; dur: number; done: number } => {
+    const order = orderFrom(tiles, from);
     const bs = t + 0.5 + k * 0.45, bd = 2 + order.length * 0.0045;
-    timing[oi] = { start: bs, dur: bd, done: bs + bd + 0.25 };
     order.forEach((tl, i) => reveal.push({ kind: 'office', x: tl[0] * TS, y: GY + tl[1] * TS, w: TS, h: TS, time: bs + (i / order.length) * bd }));
-    crews.push({ id: o.id, kind: 'build', order, start: bs, dur: bd });
+    crews.push({ id, kind: 'build', order, start: bs, dur: bd });
     k++;
+    return { start: bs, dur: bd, done: bs + bd + 0.25 };
+  };
+  if (gained.has('c')) buildCrew('@common', gained.get('c')!, lobby.entry);
+  offs.forEach((o, oi) => {
+    const g = gained.get('o:' + o.id);
+    if (!g) return;
+    timing[oi] = buildCrew(o.id, g, [o.doorTile[0], o.ty]);
   });
   const built = timing.filter((x) => x.done >= 0).map((x) => x.done);
   const pStart = built.length ? Math.max(...built) - 1.2 : t;
@@ -400,7 +570,7 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
   if (P && !changedGeo) {
     offs.forEach((o, oi) => { const p = o.prev!; timing[oi] = { start: p.buildStart, dur: p.buildDur, done: p.doneAt }; orders[oi] = p.order; });
   }
-  const changedFlag = (o: Draft): boolean => (P && !changedGeo ? !!o.prev?.changed : o.mode !== 'keep');
+  const changedFlag = (o: Draft): boolean => (P && !changedGeo ? !!o.prev?.changed : gained.has('o:' + o.id) || lost.has('o:' + o.id));
   const build = P && !changedGeo ? P.build : { reveal, demolish, crews, builders: [] as WorldLayout['build']['builders'], pathTimes, treeTimes, bushTimes, buildEnd };
 
   // ---- output ----
@@ -428,27 +598,28 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
     office: c.id, index: b, keys: c.order.filter((_, i) => i % 2 === b).map((tl, i) => ({ t: c.start + ((i * 2 + b) / c.order.length) * c.dur, c: tl[0], r: tl[1] })),
   })));
   return {
-    seed: input.seed, season, cols, rows, own, offices, plaza, plazaOk, path: ptiles, trees, bushes, outdoor,
+    seed: input.seed, season, cols, rows, own, offices, lobby, corridor, common, commonDecor, plaza, plazaOk, path: ptiles, trees, bushes, outdoor,
     build, epoch, order: orderHints,
   };
 }
 
 /** BFS order over a tile list from `start` (for demolition of a previous office). */
 function orderFrom(tiles: Tile[], start: Tile): Tile[] {
-  const set = new Map<string, Tile>();
-  for (const t of tiles) set.set(t[0] + ',' + t[1], t);
-  const k0 = start[0] + ',' + start[1];
-  const first = set.get(k0) ?? tiles[0];
-  if (!first) return [];
-  const seen = new Set<string>([first[0] + ',' + first[1]]), q: Tile[] = [first], out: Tile[] = [];
+  if (!tiles.length) return [];
+  const W = 1 << 12;
+  const key = (c: number, r: number): number => (r + 1) * W + c + 1;
+  const set = new Map<number, Tile>();
+  for (const t of tiles) set.set(key(t[0], t[1]), t);
+  const first = set.get(key(start[0], start[1])) ?? tiles.reduce((b, t) => (Math.abs(t[0] - start[0]) + Math.abs(t[1] - start[1]) < Math.abs(b[0] - start[0]) + Math.abs(b[1] - start[1]) ? t : b), tiles[0]!);
+  const seen = new Set<number>([key(first[0], first[1])]), q: Tile[] = [first], out: Tile[] = [];
   for (let h = 0; h < q.length; h++) {
     const t = q[h]!; out.push(t);
-    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const kk = (t[0] + dc) + ',' + (t[1] + dr), n = set.get(kk);
+    for (const [dc, dr] of D4) {
+      const kk = key(t[0] + dc, t[1] + dr), n = set.get(kk);
       if (n && !seen.has(kk)) { seen.add(kk); q.push(n); }
     }
   }
-  for (const t of tiles) if (!seen.has(t[0] + ',' + t[1])) out.push(t);
+  for (const t of tiles) if (!seen.has(key(t[0], t[1]))) out.push(t);
   return out;
 }
 
@@ -472,4 +643,59 @@ function planWall(o: Draft, rg: Rng, wallIds: DecorItem[], ft: { windows: number
     }
     x += rg.i(6, 18);
   }
+}
+
+/** Why `d` cannot stand in the break pockets ('' = fine): on pocket tiles only, against a wall, 2 px from others. */
+export function commonProblem(own: Own, structural: Set<number>, d: PlacedDecor, others: readonly PlacedDecor[]): string {
+  const cols = own[0]?.length ?? 0;
+  const c0 = Math.floor(d.x / TS), c1 = Math.floor((d.x + d.w - 1) / TS), r0 = Math.floor((d.y - GY) / TS), r1 = Math.floor((d.y + d.h - 1 - GY) / TS);
+  if (d.y < GY) return 'por encima del mapa';
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (ownerAt(own, c, r) !== COMMON || structural.has(r * cols + c)) return 'fuera de la zona comun';
+  for (const o of others) {
+    if (o === d) continue;
+    if (d.x < o.x + o.w + 2 && o.x < d.x + d.w + 2 && d.y < o.y + o.h + 2 && o.y < d.y + d.h + 2) return 'solapa otro mueble';
+  }
+  let wall = false;
+  for (let c = c0; c <= c1 && !wall; c++) if (ownerAt(own, c, r1 + 1) !== COMMON || ownerAt(own, c, r0 - 1) !== COMMON) wall = true;
+  if (ownerAt(own, c0 - 1, r1) !== COMMON || ownerAt(own, c1 + 1, r1) !== COMMON) wall = true;
+  return wall ? '' : 'en medio de la zona comun';
+}
+
+/** Plants in the corners and a few seats in the break pockets; items that still stand are kept. */
+function planCommonDecor(own: Own, cols: number, rows: number, structural: Set<number>, seedN: number, prev: readonly PlacedDecor[], floorDecor: DecorItem[]): PlacedDecor[] {
+  const out: PlacedDecor[] = [];
+  for (const d of prev) if (!commonProblem(own, structural, d, out)) out.push(d);
+  const pockets = labelGrass(own, cols, rows, (v) => v === COMMON);
+  const byComp = new Map<number, Tile[]>();
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    if (own[r]![c] !== COMMON || structural.has(r * cols + c)) continue;
+    const id = pockets[r * cols + c]!;
+    const l = byComp.get(id) ?? []; l.push([c, r]); byComp.set(id, l);
+  }
+  const corner = (c: number, r: number): boolean => {
+    let walls = 0;
+    for (const [dc, dr] of D4) if (ownerAt(own, c + dc, r + dr) !== COMMON) walls++;
+    return walls >= 2;
+  };
+  for (const tiles of byComp.values()) {
+    const first = tiles[0]!;
+    const rg = makeRng(seedN ^ Math.imul(first[1] * cols + first[0] + 1, 0x27d4eb2d));
+    const have = out.filter((d) => tiles.some(([c, r]) => c === Math.floor(d.x / TS) && r === Math.floor((d.y + d.h - 1 - GY) / TS))).length;
+    let want = Math.min(4, Math.ceil(tiles.length / 5)) - have;
+    const corners = tiles.filter(([c, r]) => corner(c, r));
+    const size = (id: string): [number, number] => DECO_SIZE[id] ?? ((): [number, number] => { const fd = floorDecor.find((x) => x.id === id); return fd ? [fd.w, fd.h] : [8, 8]; })();
+    const tryAt = (t: Tile, id: string): boolean => {
+      const s = size(id);
+      const d: PlacedDecor = { id, x: t[0] * TS + 1 + rg.i(0, 2), y: GY + t[1] * TS + TS - 1 - s[1], w: s[0], h: s[1] };
+      if (commonProblem(own, structural, d, out)) return false;
+      out.push(d);
+      return true;
+    };
+    for (let tries = 0; want > 0 && corners.length && tries < 12; tries++) if (tryAt(rg.pick(corners), 'plant')) want--;
+    const seats = floorDecor.length && rg.f() < 0.3 ? [rg.pick(floorDecor).id] : ['sofa', 'table', 'cooler'];
+    for (let tries = 0; want > 0 && tries < 24; tries++) {
+      if (tryAt(rg.pick(tiles), rg.pick(seats))) want--;
+    }
+  }
+  return out;
 }
