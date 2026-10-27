@@ -1,18 +1,21 @@
-import { generateWorld } from './generate.js';
+import { MAX_SPARE, generateWorld } from './generate.js';
 import type { WorldInput, WorldLayout } from './types.js';
 
 /**
- * Stability between regenerations of the same day.
- *  - Same offices/zones and every zone has room for its arrivals: geometry is untouched, agents
- *    are (re)assigned to slots (new ones take free slots, departed ones free theirs; nobody moves).
- *  - Otherwise: full re-layout with the same seed, keeping office order and agent→desk order.
+ * Next layout for a new input, from the previous one.
+ *  - Same offices and every zone keeps between 1 and MAX_SPARE free desks: geometry, roads and
+ *    furniture are untouched; agents are (re)assigned to slots (newcomers take free slots, departed
+ *    ones free theirs) and the build timeline goes on as it was.
+ *  - Otherwise the generator runs incrementally: offices that still fit keep their tiles, offices
+ *    that grew are rebuilt in place or relocated, departed offices are demolished. A new seed (next
+ *    day) rebuilds the whole town.
  */
 export function relayout(prev: WorldLayout, input: WorldInput): WorldLayout {
   if (prev.seed === input.seed && (input.cols ?? prev.cols) === prev.cols) {
     const patched = tryPatch(prev, input);
     if (patched) return patched;
   }
-  return generateWorld(input, { offices: prev.order.offices, agents: prev.order.agents });
+  return generateWorld(input, prev);
 }
 
 function tryPatch(prev: WorldLayout, input: WorldInput): WorldLayout | null {
@@ -40,9 +43,14 @@ function tryPatch(prev: WorldLayout, input: WorldInput): WorldLayout | null {
   return next;
 }
 
-/** Keep present agents where they are, free the departed, seat arrivals in free slots. */
+/**
+ * Keep present agents where they are, free the departed, seat arrivals in free slots. False when
+ * the zone would be left without a free desk or with too many (the generator re-lays it then).
+ */
 function assign(slots: { agent: string | null }[], wanted: string[]): boolean {
   const want = [...new Set(wanted)];
+  const spare = slots.length - want.length;
+  if (spare < 1 || spare > MAX_SPARE) return false;
   for (const s of slots) if (s.agent && !want.includes(s.agent)) s.agent = null;
   const seated = new Set(slots.flatMap((s) => (s.agent ? [s.agent] : [])));
   for (const a of want) {

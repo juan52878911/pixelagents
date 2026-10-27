@@ -3,6 +3,7 @@
  * animated effects from plugins/pop (fire, smoke, beam, poof, thermo, monitor). Coordinates and
  * timings follow design/prototype/prototype.html.
  */
+import { FONT_4x6, measure } from '../engine/fonts.js';
 import type { BufferPainter, Painter } from '../engine/painter.js';
 import { textWidth } from '../engine/painter.js';
 import { beam, fire, monitor, poof, smoke, thermo, hash, type MonitorState } from '../../../../plugins/pop/src/client/index.js';
@@ -81,10 +82,11 @@ export function drawRug(g: Painter, rx: number, ry: number, rw: number, col: str
     return;
   }
   for (let y = ry + 2; y < ry + 40; y += 3) g.rect(rx + rw, y, 1, 1, col);
-  // as in the prototype, the label may run past a narrow rug instead of being cut
-  const lab = label.slice(0, 16);
-  g.rect(rx + 2, ry + 2, txtW(lab) + 4, 7, 'rgba(0,0,0,0.35)');
-  g.text(lab, rx + 4, ry + 3, '#ffe9a8');
+  // zone label (4×6): the caller fits it to the rug, it never runs past it
+  if (!label) return;
+  const lw = Math.min(rw - 4, measure(label, FONT_4x6) + 4);
+  g.rect(rx + 2, ry + 2, lw, 8, 'rgba(0,0,0,0.35)');
+  g.text(label, rx + 4, ry + 3, '#ffe9a8', 1, FONT_4x6);
 }
 
 export function drawThermo(g: Painter, x: number, y: number, lvl: number): void { thermo(g, x, y, lvl); }

@@ -3,17 +3,36 @@
  * thermometer stands, bushes and trees, into two buffers — `terrain` (grass only) and `full`.
  * During the build animation the visible world is terrain + the revealed rects of `full`.
  */
+import { FONT_4x6, FONT_5x7, measure } from '../engine/fonts.js';
 import { BufferPainter } from '../engine/painter.js';
+import { signParts } from '../world/generate.js';
+import { E as EB, N as NB, S as SB, W as WB, edgeMask } from '../world/grid.js';
 import { SEASONS, type SeasonPalette } from '../world/seasons.js';
 import { GY, TS, type FloorKind, type OfficeLayout, type WorldLayout } from '../world/types.js';
 import type { Art } from './art.js';
 import { OL } from './chars.js';
-import { drawRack, hash, txtW } from './props.js';
+import { drawRack, hash } from './props.js';
+
+/** Palette shared by every office: outline, shadows, the wall trim and the sign. */
+export const PAL = {
+  outline: '#05030a',
+  shadow: 'rgba(0,0,0,0.28)',
+  wallFoot: 'rgba(0,0,0,0.35)',
+  signBox: OL,
+  signBg: '#2a2236',
+  signLabel: '#ffe9a8',
+  signKind: '#8be9fd',
+  gauge: '#8a8399',
+};
 
 export interface WorldArt {
   width: number;
   height: number;
+  /** grass only */
   terrain: BufferPainter;
+  /** grass, paths and offices (no trees or bushes) */
+  ground: BufferPainter;
+  /** everything */
   full: BufferPainter;
 }
 
@@ -59,12 +78,17 @@ function drawWall(g: BufferPainter, o: OfficeLayout): void {
     g.rect(o.x, o.y + 13, o.w, 1, '#58e1f0');
     if (o.poster != null) { const px = o.x + o.poster; g.rect(px, o.y + 3, 9, 8, '#f2c14e'); g.rect(px + 4, o.y + 4, 1, 4, OL); g.rect(px + 4, o.y + 9, 1, 1, OL); }
   }
-  g.rect(o.x, o.y + 15, o.w, 1, 'rgba(0,0,0,0.35)');
-  const name = o.label.toUpperCase(), kind = ' · ' + o.kind.toUpperCase();
-  const lw = txtW(name + kind) + 6;
-  g.rect(o.x + 5, o.y + 3, lw, 9, OL); g.rect(o.x + 6, o.y + 4, lw - 2, 7, '#2a2236');
-  g.text(name, o.x + 8, o.y + 5, '#ffe9a8');
-  g.text(kind, o.x + 8 + txtW(name) + 1, o.y + 5, '#8be9fd');
+  g.rect(o.x, o.y + 15, o.w, 1, PAL.wallFoot);
+  drawSign(g, o);
+}
+
+/** Office sign: label in 5×7, kind in 4×6, in a box that always fits before the door. */
+export function drawSign(g: BufferPainter, o: OfficeLayout): void {
+  const sp = signParts(o.label, o.kind);
+  const lw = sp.width + 6;
+  g.rect(o.x + 5, o.y + 2, lw, 11, PAL.signBox); g.rect(o.x + 6, o.y + 3, lw - 2, 9, PAL.signBg);
+  g.text(sp.label, o.x + 8, o.y + 4, PAL.signLabel, 1, FONT_5x7);
+  g.text('· ' + sp.kind, o.x + 8 + measure(sp.label, FONT_5x7) + 4, o.y + 5, PAL.signKind, 1, FONT_4x6);
 }
 
 function drawTree(g: BufferPainter, art: Art, tr: { x: number; y: number; kind: number }, season: string, S: SeasonPalette): void {
@@ -109,14 +133,13 @@ export function paintWorld(w: WorldLayout, art: Art): WorldArt {
     g.px(x + 1 + (h % 5), y + 2 + ((h >>> 4) % 4), '#b5a078'); g.px(x + 2 + ((h >>> 7) % 4), y + 1 + ((h >>> 10) % 5), '#d8c8a0');
   }
   w.offices.forEach((o, oi) => {
-    const mine = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && w.own[r]![c] === oi;
-    const tiles: [number, number][] = [];
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (w.own[r]![c] === oi) tiles.push([c, r]);
+    const tiles = o.tiles;
     if (!tiles.length) return;
-    for (const [c, r] of tiles) {
-      const x = c * TS, y = GY + r * TS;
-      if (!mine(c, r + 1)) g.rect(x + 2, y + 8, 8, 3, 'rgba(0,0,0,0.28)');
-      if (!mine(c + 1, r)) g.rect(x + 8, y + 3, 2, 8, 'rgba(0,0,0,0.28)');
+    const masks = tiles.map(([c, r]) => edgeMask(w.own, c, r, oi));
+    for (const [i, [c, r]] of tiles.entries()) {
+      const x = c * TS, y = GY + r * TS, m = masks[i]!;
+      if (m & SB) g.rect(x + 2, y + 8, 8, 3, PAL.shadow);
+      if (m & EB) g.rect(x + 8, y + 3, 2, 8, PAL.shadow);
     }
     let x0 = W, y0 = H, x1 = 0, y1 = 0;
     for (const [c, r] of tiles) { x0 = Math.min(x0, c * TS); y0 = Math.min(y0, GY + r * TS); x1 = Math.max(x1, c * TS + TS); y1 = Math.max(y1, GY + r * TS + TS); }
@@ -125,31 +148,34 @@ export function paintWorld(w: WorldLayout, art: Art): WorldArt {
     floorPattern(fp, o.floor, 0, 0, x1 - x0, y1 - y0);
     for (const [c, r] of tiles) blit(fp, c * TS - x0, GY + r * TS - y0, g, c * TS, GY + r * TS, TS, TS);
     drawWall(g, o);
-    for (const [c, r] of tiles) {
-      const x = c * TS, y = GY + r * TS;
-      const hall = c >= o.tx && c < o.tx + o.tw && r < o.ty + 2 && r >= o.ty;
-      if (!hall && !mine(c, r - 1)) { g.rect(x, y, 8, 7, o.wall); g.rect(x, y + 6, 8, 1, 'rgba(0,0,0,0.35)'); }
-      if (o.floor === 'lab' && !mine(c, r + 1)) for (let rr = 5; rr < 8; rr++) for (let xx = 0; xx < 8; xx++) g.px(x + xx, y + rr, ((x + xx + rr) >> 2) & 1 ? '#f2c14e' : OL);
+    const hall = (c: number, r: number): boolean => c >= o.tx && c < o.tx + o.tw && r >= o.ty && r < o.ty + o.th;
+    for (const [i, [c, r]] of tiles.entries()) {
+      const x = c * TS, y = GY + r * TS, m = masks[i]!;
+      // low wall on wing tiles whose back is open (autotile: N edge)
+      if (!hall(c, r) && m & NB) { g.rect(x, y, 8, 7, o.wall); g.rect(x, y + 6, 8, 1, PAL.wallFoot); }
+      if (o.floor === 'lab' && m & SB) for (let rr = 5; rr < 8; rr++) for (let xx = 0; xx < 8; xx++) g.px(x + xx, y + rr, ((x + xx + rr) >> 2) & 1 ? '#f2c14e' : OL);
     }
-    for (const [c, r] of tiles) {
-      const x = c * TS, y = GY + r * TS;
-      if (!mine(c, r - 1)) g.rect(x, y, 8, 1, '#05030a');
-      if (!mine(c, r + 1)) g.rect(x, y + 7, 8, 1, '#05030a');
-      if (!mine(c - 1, r)) g.rect(x, y, 1, 8, '#05030a');
-      if (!mine(c + 1, r)) g.rect(x + 7, y, 1, 8, '#05030a');
+    for (const [i, [c, r]] of tiles.entries()) {
+      const x = c * TS, y = GY + r * TS, m = masks[i]!;
+      if (m & NB) g.rect(x, y, 8, 1, PAL.outline);
+      if (m & SB) g.rect(x, y + 7, 8, 1, PAL.outline);
+      if (m & WB) g.rect(x, y, 1, 8, PAL.outline);
+      if (m & EB) g.rect(x + 7, y, 1, 8, PAL.outline);
     }
     for (let i = 0; i < o.racks; i++) drawRack(g, art, o.x + 6 + i * 16, o.y + 20);
     const gx = o.x + o.w - 24;
     g.rect(gx + 1, o.y + 57, 9, 2, '#3a3346');
     g.rect(gx - 2, o.y + 81, 19, 3, '#3a3346'); g.rect(gx - 2, o.y + 81, 19, 1, '#4d4459');
-    g.text('CARGA', gx - 3, o.y + 19, '#8a8399');
+    g.text('CARGA', gx - 3, o.y + 19, PAL.gauge);
   });
+  const ground = new BufferPainter(W, H);
+  ground.data.set(g.data);
   for (const b of w.bushes) {
     if (!art.draw(g, `bush.${w.season}`, b.x, b.y)) { g.rect(b.x, b.y + 1, 8, 4, S.cd); g.rect(b.x + 1, b.y, 6, 4, S.c); }
     g.rect(b.x + 1, b.y + 5, 6, 1, 'rgba(0,0,0,0.25)');
   }
   for (const tr of [...w.trees].sort((a, b) => a.y - b.y)) drawTree(g, art, tr, w.season, S);
-  return { width: W, height: H, terrain, full: g };
+  return { width: W, height: H, terrain, ground, full: g };
 }
 
 /** Copies a w×h block between buffers (opaque pixels only). */
@@ -179,21 +205,43 @@ export function copyRect(src: BufferPainter, dst: BufferPainter, x: number, y: n
   dst.dirty = true;
 }
 
-/** Build animation frame into `out`: terrain, then every revealed item, with a white flash on fresh tiles. */
-export function paintConstruction(wa: WorldArt, w: WorldLayout, tb: number, out: BufferPainter): void {
-  out.data.set(wa.terrain.data);
-  for (const rv of w.build.reveal) {
-    if (rv.time > tb) continue;
-    copyRect(wa.full, out, rv.x, rv.y, rv.w, rv.h);
-    const a = tb - rv.time;
-    if (a < 0.15) {
-      const pa = out.alpha(1 - a / 0.15);
-      out.rect(rv.x, rv.y, rv.w, 1, '#ffffff'); out.rect(rv.x, rv.y + rv.h - 1, rv.w, 1, '#ffffff');
-      out.rect(rv.x, rv.y, 1, rv.h, '#ffffff'); out.rect(rv.x + rv.w - 1, rv.y, 1, rv.h, '#ffffff');
-      out.alpha(pa);
-    }
+/**
+ * Construction frame into `out`: the new world, with what is not built yet shown as terrain, what is
+ * being demolished shown from the previous world's art until its time, and a white flash on fresh
+ * tiles. `prev` is the art of the previous layout (any size; only overlapping rects copy).
+ */
+export function paintConstruction(wa: WorldArt, prev: WorldArt | null, w: WorldLayout, tb: number, out: BufferPainter): void {
+  out.data.set(wa.full.data);
+  const rv = w.build.reveal, dm = w.build.demolish;
+  // pending tiles show terrain; pending trees/bushes show the ground (they may overlap built tiles)
+  for (const r of rv) if (r.time > tb) copyRect(r.kind === 'office' || r.kind === 'path' ? wa.terrain : wa.ground, out, r.x, r.y, r.w, r.h);
+  if (prev) for (const r of dm) if (r.time > tb) copyRectFrom(prev.full, out, r.x, r.y, r.w, r.h);
+  // trees and bushes overlap each other: restore the revealed ones a pending neighbour may have hidden
+  for (const r of rv) if (r.time <= tb && r.kind !== 'office' && r.kind !== 'path') copyRect(wa.full, out, r.x, r.y, r.w, r.h);
+  for (const r of rv) {
+    const a = tb - r.time;
+    if (a < 0 || a >= 0.15) continue;
+    const pa = out.alpha(1 - a / 0.15);
+    out.rect(r.x, r.y, r.w, 1, '#ffffff'); out.rect(r.x, r.y + r.h - 1, r.w, 1, '#ffffff');
+    out.rect(r.x, r.y, 1, r.h, '#ffffff'); out.rect(r.x + r.w - 1, r.y, 1, r.h, '#ffffff');
+    out.alpha(pa);
+  }
+  for (const r of dm) {
+    const a = r.time - tb;
+    if (a < 0 || a >= 0.12 || r.kind !== 'office') continue;
+    const pa = out.alpha(0.7);
+    out.rect(r.x, r.y, r.w, r.h, '#ffd23f');
+    out.alpha(pa);
   }
   out.dirty = true;
+}
+
+/** Copies a rect from a buffer of any size into `dst` at the same coordinates (clipped to both). */
+export function copyRectFrom(src: BufferPainter, dst: BufferPainter, x: number, y: number, w: number, h: number): void {
+  const x0 = Math.max(0, x), x1 = Math.min(src.width, dst.width, x + w), y0 = Math.max(0, y), y1 = Math.min(src.height, dst.height, y + h);
+  if (x1 <= x0) return;
+  for (let yy = y0; yy < y1; yy++) dst.data.set(src.data.subarray((yy * src.width + x0) * 4, (yy * src.width + x1) * 4), (yy * dst.width + x0) * 4);
+  dst.dirty = true;
 }
 
 export function hashStr(s: string): number {

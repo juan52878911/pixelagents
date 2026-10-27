@@ -5,3 +5,6 @@ export type { StrategyFn, GrowCtx, OfficeDraft } from './strategies.js';
 export { SEASONS, seasonFromSeed } from './seasons.js';
 export { TS, GY, DEFAULT_COLS } from './types.js';
 export type * from './types.js';
+export { edgeMask, tilesOf, shapeUp, reach, labelGrass, N, E, S, W } from './grid.js';
+export { placementProblem, walkableFn, footprint, isWallTile, isHall, type OfficeGeom } from './furniture.js';
+export { signParts } from './generate.js';
