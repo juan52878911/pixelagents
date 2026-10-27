@@ -3,7 +3,8 @@
 // filter of plugin-effects on the `screen` layer, takes scene-1.png (builders), scene-2.png (finished
 // town, integer scale 3), scene-scale1.png (scale 1), scene-zoom.png (camera zoom 3 on an office),
 // scene-wait.png, scene-fx.png, scene-50.png (after growth), and the mean frame time with 50
-// synthetic agents. It also asserts pixel-perfect output: every device block of an rt pixel (and of a
+// synthetic agents, then scene-shrink.png after 40 of them leave (offices release space, the rest
+// stand still). It also asserts pixel-perfect output: every device block of an rt pixel (and of a
 // world pixel under camera zoom) is one flat color, so no layer is sampled bilinearly.
 // Usage: node packages/web/scripts/scene-check.mjs   (SCENE_NOBUILD=1 to reuse dist/)
 import { spawn, spawnSync } from 'node:child_process';
@@ -184,6 +185,32 @@ try {
   const moved = before.filter((b) => { const a = after.find((x) => x[0] === b[0]); return a && (a[1] !== b[1] || a[2] !== b[2]); });
   check('the town grew without moving the existing offices', after.length > before.length && moved.length === 0, `${before.length} → ${after.length} offices, moved: ${moved.map((m) => m[0]).join(',') || 'none'}`);
   await page.screenshot({ path: path.join(here, 'scene-50.png') });
+  await page.evaluate(() => window.__pixelagents.engine.setCamera(0, 320, 1));
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(here, 'scene-50-south.png') });
+  await page.evaluate(() => window.__pixelagents.engine.setCamera(0, 0, 1));
+  // release: 40 of the synthetic agents leave; their offices give space back (smaller halls, wings
+  // demolished) while every other office stands still; scene-shrink.png shows the result
+  const gone = [];
+  for (let i = 0; i < N_SYN; i++) if (i % 5 !== 0) gone.push({ v: 1, session: `syn-${i}`, agent: 'dev', account: ['work', 'personal', 'plus'][i % 3], host: `host-${i % 5}`, cwd: `/w/r${i % 3}`, repo: `repo-${i % 3}`, branch: 'main', ts: now(), kind: 'session.end' });
+  await post(gone);
+  const sameHall = (a, b) => a && b && a[1] === b[1] && a[2] === b[2] && a[3] === b[3] && a[4] === b[4];
+  await page.waitForFunction((prev) => {
+    const now = window.__pixelagents.scene.api.layout.offices.map((o) => [o.id, o.tx, o.ty, o.tw, o.th]);
+    return prev.some((p) => { const n = now.find((x) => x[0] === p[0]); return n && (n[3] < p[3] || n[4] < p[4]); });
+  }, after, { timeout: 40000 });
+  await page.waitForFunction(() => window.__pixelagents.scene.buildDone(), null, { timeout: 40000 });
+  await page.waitForTimeout(1500);
+  const shrunk = await page.evaluate(() => window.__pixelagents.scene.api.layout.offices.map((o) => [o.id, o.tx, o.ty, o.tw, o.th]));
+  const stillFull = after.filter((b) => b[0] === 'host-0' || before.some((x) => x[0] === b[0]));
+  const movedAfter = stillFull.filter((b) => !sameHall(b, shrunk.find((x) => x[0] === b[0])));
+  const smaller = after.filter((b) => { const n = shrunk.find((x) => x[0] === b[0]); return n && (n[3] < b[3] || n[4] < b[4]); });
+  check('offices released space without moving the others', smaller.length > 0 && movedAfter.length === 0, `${smaller.length} smaller (${smaller.map((m) => m[0]).join(',')}), moved: ${movedAfter.map((m) => m[0]).join(',') || 'none'}`);
+  await page.screenshot({ path: path.join(here, 'scene-shrink.png') });
+  await page.evaluate(() => window.__pixelagents.engine.setCamera(0, 320, 1));
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(here, 'scene-shrink-south.png') });
+  await page.evaluate(() => window.__pixelagents.engine.setCamera(0, 0, 1));
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (err) {
   console.error(err);
