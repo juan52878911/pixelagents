@@ -663,7 +663,10 @@ export class Scene implements SceneApi {
 
   focus(entityId: string): void {
     const a = this.actors.get(entityId);
+    const changed = this.selected !== entityId;
     this.selected = entityId;
+    // tell the UI (inspector) only on a real change, so its own focus() calls don't loop
+    if (changed) for (const cb of this.selectCbs) cb(entityId);
     if (!a) return;
     const b = this.boxOf(dataOf(a));
     if (!b) return;

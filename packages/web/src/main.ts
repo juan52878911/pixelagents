@@ -32,8 +32,8 @@ async function main(): Promise<void> {
   Object.assign(overlay.style, { position: 'absolute', inset: '0', pointerEvents: 'none' });
   app.appendChild(overlay);
   const ctx: UiContext = { store, scene, root: overlay };
-  mountInspector(ctx);
   mountSettings(ctx);
+  mountInspector(ctx, { onOpenSettings: () => window.dispatchEvent(new CustomEvent('pixelagents:settings')) });
 
   if (q.has('demo')) startDemo(store, Number(q.get('n') ?? 12));
   else store.connect('/events');
@@ -45,6 +45,8 @@ async function main(): Promise<void> {
     scene: {
       actors: () => scene.actorList(),
       groups: () => scene.groupList(),
+      focus: (id: string) => scene.focus(id),
+      highlight: (ids: string[] | null) => scene.highlight(ids),
       buildDone: () => scene.buildDone,
       api: scene,
     },
