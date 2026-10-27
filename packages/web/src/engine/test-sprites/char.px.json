@@ -1,0 +1,283 @@
+{
+ "px": 1,
+ "sprites": [
+  {
+   "name": "char.front",
+   "w": 10,
+   "h": 14,
+   "palette": {
+    "H": "#5a3a22",
+    "S": "#d9a07a",
+    "s": "#b97f58",
+    "E": "#1a1423",
+    "m": "#7a2a2a",
+    "B": "#ec8a3c",
+    "b": "#b8601f",
+    "P": "#2d3340",
+    "K": "#15121c",
+    "T": "#7a1e2c",
+    "W": "#f4efe6",
+    "C": "#3fc79a",
+    "c": "#25916c",
+    "A": "#dfe7f7",
+    "a": "#6fa3ff"
+   },
+   "frames": [
+    [
+     "...HHHH...",
+     "..HHHHHH..",
+     "..HSSSSH..",
+     "..SESSES..",
+     "..SSSSSS..",
+     "...SSSS...",
+     "..BBBBBB..",
+     ".BBBBBBBB.",
+     ".BbBBBBbB.",
+     ".SbBBBBbS.",
+     "..PPPPPP..",
+     "..PP..PP..",
+     "..PP..PP..",
+     "..KK..KK.."
+    ],
+    [
+     "...HHHH...",
+     "..HHHHHH..",
+     "..HSSSSH..",
+     "..SESSES..",
+     "..SSSSSS..",
+     "...SSSS...",
+     "..BBBBBB..",
+     ".BBBBBBBB.",
+     ".BbBBBBbB.",
+     ".SbBBBBbS.",
+     "..PPPPPP..",
+     "..PP..PP..",
+     "..PP..KK..",
+     "..KK......"
+    ],
+    [
+     "...HHHH...",
+     "..HHHHHH..",
+     "..HSSSSH..",
+     "..SESSES..",
+     "..SSSSSS..",
+     "...SSSS...",
+     "..BBBBBB..",
+     ".BBBBBBBB.",
+     ".BbBBBBbB.",
+     ".SbBBBBbS.",
+     "..PPPPPP..",
+     "..PP..PP..",
+     "..PP..PP..",
+     "..KK..KK.."
+    ],
+    [
+     "...HHHH...",
+     "..HHHHHH..",
+     "..HSSSSH..",
+     "..SESSES..",
+     "..SSSSSS..",
+     "...SSSS...",
+     "..BBBBBB..",
+     ".BBBBBBBB.",
+     ".BbBBBBbB.",
+     ".SbBBBBbS.",
+     "..PPPPPP..",
+     "..PP..PP..",
+     "..KK..PP..",
+     "......KK.."
+    ],
+    [
+     "...HHHH...",
+     "..HHHHHH..",
+     "..HSSSSH..",
+     "..SESSES..",
+     "..SSSSSS..",
+     "...SSSS...",
+     "..BBBBBB..",
+     ".BBBBBBBB.",
+     ".BbBBBBbB.",
+     ".SbBBBBbS.",
+     "..PPPPPP..",
+     "..PP..PP..",
+     "..PP..PP..",
+     "..KK..KK.."
+    ]
+   ],
+   "fps": 6,
+   "anchor": [
+    5,
+    14
+   ],
+   "tags": {
+    "idle": [
+     0,
+     0
+    ],
+    "walk": [
+     1,
+     4
+    ]
+   },
+   "meta": {
+    "view": "front"
+   }
+  }
+ ],
+ "overlays": [
+  {
+   "name": "acc.tie",
+   "views": {
+    "front": [
+     [
+      3,
+      6,
+      "W"
+     ],
+     [
+      6,
+      6,
+      "W"
+     ],
+     [
+      4,
+      6,
+      "T"
+     ],
+     [
+      5,
+      6,
+      "T"
+     ],
+     [
+      4,
+      7,
+      "T"
+     ],
+     [
+      5,
+      7,
+      "T"
+     ],
+     [
+      4,
+      8,
+      "T"
+     ],
+     [
+      5,
+      8,
+      "T"
+     ],
+     [
+      4,
+      9,
+      "T"
+     ],
+     [
+      5,
+      9,
+      "T"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "acc.cap",
+   "views": {
+    "front": [
+     [
+      3,
+      -1,
+      "C"
+     ],
+     [
+      4,
+      -1,
+      "C"
+     ],
+     [
+      5,
+      -1,
+      "C"
+     ],
+     [
+      6,
+      -1,
+      "C"
+     ],
+     [
+      2,
+      0,
+      "C"
+     ],
+     [
+      3,
+      0,
+      "C"
+     ],
+     [
+      4,
+      0,
+      "C"
+     ],
+     [
+      5,
+      0,
+      "C"
+     ],
+     [
+      6,
+      0,
+      "C"
+     ],
+     [
+      7,
+      0,
+      "C"
+     ],
+     [
+      1,
+      1,
+      "c"
+     ],
+     [
+      2,
+      1,
+      "c"
+     ],
+     [
+      3,
+      1,
+      "c"
+     ],
+     [
+      4,
+      1,
+      "c"
+     ],
+     [
+      5,
+      1,
+      "c"
+     ],
+     [
+      6,
+      1,
+      "c"
+     ],
+     [
+      7,
+      1,
+      "c"
+     ],
+     [
+      8,
+      1,
+      "c"
+     ]
+    ]
+   }
+  }
+ ]
+}

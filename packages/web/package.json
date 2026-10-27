@@ -2,8 +2,20 @@
   "name": "@pixelagents/web",
   "version": "0.0.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./plugin-api": "./src/plugin-api.ts" },
-  "scripts": { "dev": "vite", "build": "vite build" },
-  "dependencies": { "@pixelagents/protocol": "*", "pixi.js": "^8.5.0" },
-  "devDependencies": { "vite": "^5.4.0" }
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin-api": "./src/plugin-api.ts"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@pixelagents/protocol": "*",
+    "pixi.js": "^8.5.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1",
+    "vite": "^5.4.0"
+  }
 }
