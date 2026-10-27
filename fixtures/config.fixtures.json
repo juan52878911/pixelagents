@@ -1,0 +1,5 @@
+{ "version": 1, "inputs": [ { "id": "fx", "type": "file", "path": "__REPO__/fixtures/claude-code.v1.jsonl", "adapter": "claude-code", "fromStart": true },
+  { "id": "nod", "type": "file", "path": "__REPO__/fixtures/nod.events.jsonl", "adapter": "nod", "fromStart": true, "options": { "accountMap": { "claude": "personal" } } },
+  { "id": "vms", "type": "file", "path": "__REPO__/fixtures/kling.events.jsonl", "adapter": "kindling-events", "fromStart": true } ],
+  "plugins": ["@pixelagents/plugin-claude-code", "@pixelagents/plugin-nod", "@pixelagents/plugin-kindling", "@pixelagents/plugin-pop"],
+  "timing": { "sleepAfterSec": 99999999, "forgetAfterSec": 99999999, "endedLingerSec": 99999999, "historyMax": 50 } }
