@@ -1,0 +1,33 @@
+{
+  "px": 1,
+  "sprites": [
+    {
+      "name": "pet.cat",
+      "w": 8,
+      "h": 6,
+      "anchor": [4, 6],
+      "fps": 4,
+      "tags": { "idle": [0, 0], "walk": [0, 1] },
+      "meta": { "kind": "pet" },
+      "palette": { "F": "#e9a23b", "f": "#b8741f", "E": "#1a1423", "N": "#ff9d8a" },
+      "frames": [
+        [
+          ".F....F.",
+          ".FFFFFF.",
+          ".FEFFEF.",
+          ".FFNNFF.",
+          "..FFFF.f",
+          "..F..F.."
+        ],
+        [
+          ".F....F.",
+          ".FFFFFF.",
+          ".FEFFEF.",
+          ".FFNNFF.",
+          "..FFFF.f",
+          ".F....F."
+        ]
+      ]
+    }
+  ]
+}

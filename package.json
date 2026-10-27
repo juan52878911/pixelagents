@@ -2,13 +2,8 @@
   "name": "pixelagents-monorepo",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "packages/*",
-    "plugins/*"
-  ],
-  "engines": {
-    "node": ">=20"
-  },
+  "workspaces": ["packages/*", "plugins/*", "examples/hello-plugin"],
+  "engines": { "node": ">=20" },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json && tsc -p packages/web/tsconfig.json && tsc -p packages/cli/tsconfig.json",
     "test": "vitest run",

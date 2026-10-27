@@ -1,0 +1,11 @@
+{
+  "assets": ["~/.pixelagents/assets"],
+  "skins": {
+    "ocean": { "palette": { "B": "#2f6fb5", "b": "#1d4a7a", "H": "#222a35" } },
+    "night-shift": { "palette": { "B": "#3b3346", "b": "#1a1423" }, "accessory": "headphones" }
+  },
+  "classify": [
+    { "name": "skin by account", "match": { "labels.account": "*" }, "set": { "view.skin": "{{labels.account}}" } },
+    { "name": "work account is ocean", "match": { "labels.account": "work" }, "set": { "view.skin": "ocean" } }
+  ]
+}
