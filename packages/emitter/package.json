@@ -3,5 +3,10 @@
   "version": "0.0.0",
   "type": "module",
   "exports": { ".": "./src/index.ts" },
+  "bin": { "pixelagents": "bin/pixelagents.js", "pixelagents-agent": "bin/pixelagents-agent.js" },
+  "scripts": {
+    "build": "node --check bin/emit.js && tsc -p tsconfig.build.json",
+    "bench": "node scripts/bench-emit.mjs"
+  },
   "dependencies": { "@pixelagents/protocol": "*" }
 }
