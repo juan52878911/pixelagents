@@ -24,7 +24,7 @@ import { EMOJI_DUR, emojiAt, gagAt, allowedGags } from './fun.js';
 import { drawIcon } from './icons.js';
 import { behaviorFor, buildWorldInput, groupOf, placementFor } from './input.js';
 import {
-  RUGS, bubble, drawBuilder, drawChair, drawDeco, drawDeskBuilt, drawDoor, drawMinis, drawMonitor, drawPig, drawPod,
+  RUGS, bubble, drawBuilder, drawRugLabel, drawChair, drawDeco, drawDeskBuilt, drawDoor, drawMinis, drawMonitor, drawPig, drawPod,
   drawRug, drawThermo, hash, poof, sayBubble, talkBubble, txtW, type PodState,
 } from './props.js';
 import { paintConstruction, paintWorld, worldSize, type WorldArt } from './worldpaint.js';
@@ -345,6 +345,7 @@ export class Scene implements SceneApi {
       for (const d of o.wallDeco) drawDeco(g, art, d, t);
       for (const d of o.decor) drawDeco(g, art, d, t);
       // rugs: zones with someone at a desk
+      const labels: [number, number, number, string][] = [];
       for (const z of o.zones) {
         const xs: number[] = [];
         let grow = 0, extra = 0;
@@ -365,9 +366,11 @@ export class Scene implements SceneApi {
         const label = fit(z.label, rw - 8, FONT_4x6);
         let w = rw;
         if (xs.length && grow) w += Math.round((Math.max(extra + 29 - rx, rw) - rw) * Math.min(1, grow * 1.5));
-        drawRug(g, rx, ry, w, RUGS[strHash(z.id) % RUGS.length]!, label, xs.length ? 1 : grow);
-        // bubbles (x cx+6..cx+20, bottom dy-12) that would cover the label go above the rug instead
+        // the label goes on top of the agents and gags (second pass below)
+        drawRug(g, rx, ry, w, RUGS[strHash(z.id) % RUGS.length]!, '', xs.length ? 1 : grow);
         if (label && w >= rw) {
+          labels.push([rx, ry, rw, label]);
+          // bubbles (x cx+6..cx+20, bottom dy-12) that would cover the label go above the rug instead
           const lx1 = rx + 2 + Math.min(rw - 4, measure(label, FONT_4x6) + 4);
           for (const s of z.slots) if (s.agent && s.dx + 8 < lx1) this.bubbleLift.set(s.agent, s.dy - 12 - (ry + 1));
         }
@@ -434,6 +437,7 @@ export class Scene implements SceneApi {
         g.px(rx + 2, ry, on ? (j % 3 ? '#5dff9b' : '#ffb84d') : '#1b3a26');
         g.px(rx + 4, ry, hash(i + j * 5 + Math.floor(t * 5)) % 2 ? '#5dff9b' : '#1b3a26');
       }
+      for (const [rx, ry, rw, label] of labels) drawRugLabel(g, rx, ry, rw, label);
       if (o.capsules.length) this.drawLab(g, o, list, t, fresh);
       this.drawGauges(g, o, oi, t, fresh, list);
     });
@@ -493,7 +497,7 @@ export class Scene implements SceneApi {
       for (let i = 0; i < 3; i++) {
         const q = (t * 0.5 + i / 3) % 1;
         const pa = g.alpha(1 - q);
-        g.text('Z', cx + 8 + Math.round(q * 5), by - 2 - Math.round(q * 11), '#dfe7ff');
+        g.text('Z', cx + 8 + Math.round(q * 5), by - 2 - (lift ? 6 : 0) - Math.round(q * 11), '#dfe7ff');
         g.alpha(pa);
       }
     } else if (st === 'talk' && speaking) talkBubble(g, art, cx + 7, by - 9, t);

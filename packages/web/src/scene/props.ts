@@ -82,11 +82,15 @@ export function drawRug(g: Painter, rx: number, ry: number, rw: number, col: str
     return;
   }
   for (let y = ry + 2; y < ry + 40; y += 3) g.rect(rx + rw, y, 1, 1, col);
-  // zone label (4×6): the caller fits it to the rug, it never runs past it
-  if (!label) return;
+  if (label) drawRugLabel(g, rx, ry, rw, label);
+}
+
+/** Zone label (4×6) on a rug: the caller fits it, it never runs past it. Returns its right edge. */
+export function drawRugLabel(g: Painter, rx: number, ry: number, rw: number, label: string): number {
   const lw = Math.min(rw - 4, measure(label, FONT_4x6) + 4);
   g.rect(rx + 2, ry + 2, lw, 8, 'rgba(0,0,0,0.35)');
   g.text(label, rx + 4, ry + 3, '#ffe9a8', 1, FONT_4x6);
+  return rx + 2 + lw;
 }
 
 export function drawThermo(g: Painter, x: number, y: number, lvl: number): void { thermo(g, x, y, lvl); }
