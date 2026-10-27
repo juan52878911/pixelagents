@@ -167,8 +167,8 @@ export default definePlugin({ name: 'ticker', inputs: [tickerInput] });
 ```
 <!-- /snippet -->
 
-Known limit: `CONFIG_SCHEMA.inputs` currently only accepts the five built-in `type`s, so a config with
-`"type": "ticker"` fails validation until the schema gains an open variant (the test marks it `it.fails`).
+`CONFIG_SCHEMA.inputs` accepts input types registered by plugins, so a config with `"type": "ticker"`
+validates (examples/snippets/test checks it).
 
 ## Classification rules, skins and behaviors (no code)
 

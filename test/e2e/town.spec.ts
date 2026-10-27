@@ -10,9 +10,6 @@ import { expect, test, type Page } from '@playwright/test';
 //   window.__pixelagents.scene.focus(id)                                  selects an actor (opens the inspector)
 //   [data-testid=inspector-tool] / [data-testid=inspector-detail]         inspector fields
 //   [data-testid=waiting-chip]                                            notice for an agent that waits
-const SCENE_PENDING =
-  'the web app on this branch is still the engine demo: window.__pixelagents (scene, inspector, waiting chip) is not wired yet. Enable after integration.';
-
 interface Scene {
   actors(): { id: string; kind: string }[];
   groups(): { id: string }[];
@@ -43,8 +40,6 @@ test('serves the web app, /healthz and the fixture state from the bundle', async
 });
 
 test.describe('scene and inspector', () => {
-  test.fixme(true, SCENE_PENDING);
-
   test('shows 4 agents in 3 offices', async ({ page }) => {
     await page.goto('/');
     await sceneReady(page);
@@ -54,12 +49,23 @@ test.describe('scene and inspector', () => {
     expect(groups).toHaveLength(3);
   });
 
-  test('selecting an agent shows its tool and detail in the inspector', async ({ page }) => {
+  test('selecting an agent shows its tool and detail in the inspector', async ({ page, request }) => {
+    // The fixture sessions have all ended (no current activity), so use a live one that is editing.
+    const base = { v: 1, session: 'e2e-edit', agent: 'dev', account: 'work', host: 'laptop', cwd: '/home/dev/code/api', repo: 'api', branch: 'main' };
+    const now = () => new Date().toISOString();
+    const res = await request.post('/v1/events', {
+      data: [
+        { ...base, ts: now(), kind: 'session.start' },
+        { ...base, ts: now(), kind: 'turn.start' },
+        { ...base, ts: now(), kind: 'tool.pre', tool: 'Edit', detail: 'src/routes.ts' },
+      ],
+    });
+    expect(res.ok()).toBeTruthy();
     await page.goto('/');
     await sceneReady(page);
-    await page.evaluate(() => window.__pixelagents!.scene.focus('agent:s-laptop-2'));
-    await expect(page.getByTestId('inspector-tool')).not.toBeEmpty();
-    await expect(page.getByTestId('inspector-detail')).not.toBeEmpty();
+    await page.evaluate(() => window.__pixelagents!.scene.focus('agent:e2e-edit'));
+    await expect(page.getByTestId('inspector-tool')).toHaveText('Edit');
+    await expect(page.getByTestId('inspector-detail')).toContainText('routes.ts');
   });
 
   test('an agent waiting for permission raises a chip', async ({ page, request }) => {

@@ -4,6 +4,7 @@
  */
 import type { BehaviorDef } from './engine/behaviors.js';
 import type { FilterFactory } from './engine/filters.js';
+import { registerStrategy as registerWorldStrategy, type StrategyFn } from './world/strategies.js';
 
 export interface PanelContext {
   /** Latest state; subscribe on the store for changes. */
@@ -37,7 +38,11 @@ const strategies = new Map<string, unknown>();
 const panels = new Map<string, PanelDef>();
 const spriteUrls = new Set<string>();
 
-export function registerStrategy(name: string, def: unknown): void { strategies.set(name, def); }
+/** Keeps the definition and, when it is a function, makes it a world generator strategy right away. */
+export function registerStrategy(name: string, def: unknown): void {
+  strategies.set(name, def);
+  if (typeof def === 'function') registerWorldStrategy(name, def as StrategyFn);
+}
 export function getStrategies(): ReadonlyMap<string, unknown> { return strategies; }
 export function getPanels(): PanelDef[] { return [...panels.values()]; }
 export function getPluginSprites(): string[] { return [...spriteUrls]; }
@@ -54,7 +59,7 @@ export interface PluginHost {
 export function registerClientPlugin(p: ClientPlugin, host: Pick<PluginHost, 'registerBehavior' | 'registerFilter'>): void {
   for (const [k, v] of Object.entries(p.behaviors ?? {})) host.registerBehavior(k, v);
   for (const [k, v] of Object.entries(p.filters ?? {})) host.registerFilter(k, v);
-  for (const [k, v] of Object.entries(p.strategies ?? {})) strategies.set(k, v);
+  for (const [k, v] of Object.entries(p.strategies ?? {})) registerStrategy(k, v);
   for (const u of p.sprites ?? []) spriteUrls.add(u);
   for (const pn of p.panels ?? []) panels.set(pn.id, pn);
 }

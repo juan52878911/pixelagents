@@ -63,7 +63,10 @@ const THREE = [
 let browser;
 let code = 0;
 try {
-  browser = await chromium.launch({ channel: 'chrome', headless: true });
+  // CI: Playwright's Chromium with software WebGL (SwiftShader); locally the system Chrome.
+  browser = await chromium.launch(process.env.CI
+    ? { headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] }
+    : { channel: 'chrome', headless: true });
   const page = await browser.newPage({ viewport: { width: 960, height: 656 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));

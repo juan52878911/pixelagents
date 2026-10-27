@@ -1,5 +1,5 @@
 import type { EffectConfig, WorldConfig } from '@pixelagents/protocol';
-import { Application, Container, Filter, RenderTexture, Sprite } from 'pixi.js';
+import { Application, Container, Filter, Rectangle, RenderTexture, Sprite } from 'pixi.js';
 import { type Entity, World, animatorSystem, spriteSyncSystem } from './ecs.js';
 import { behaviorSystem } from './behaviors.js';
 import { type LayerName, buildEffects } from './filters.js';
@@ -149,8 +149,13 @@ export class Engine {
 
   // ---- filters ----
 
+  /**
+   * `screen` filters post-process the whole frame: they go on the scene container (the `screen` layer
+   * itself is empty), clipped to the logical render target.
+   */
   setLayerFilters(layer: LayerName, filters: Filter[]): void {
-    const c = this.layers[layer];
+    const c = layer === 'screen' ? this.scene : this.layers[layer];
+    if (layer === 'screen') c.filterArea = filters.length ? new Rectangle(0, 0, this.width, this.height) : undefined;
     const old = c.filters as Filter[] | undefined;
     c.filters = filters.length ? filters : null;
     if (old) for (const f of Array.isArray(old) ? old : [old]) if (!filters.includes(f)) f.destroy();

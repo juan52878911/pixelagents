@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from '@pixelagents/protocol';
 import { describe, expect, it, vi } from 'vitest';
 import { type EventSourceLike, Store, startDemo } from '../src/store.js';
 import { loadClientPlugins } from '../src/plugin-api.js';
+import { getStrategy } from '../src/world/strategies.js';
 
 const ent = (id: string, status = 'idle'): Entity => ({
   id, kind: 'agent', labels: {}, status, metrics: {}, firstSeen: 'x', lastSeen: 'x', history: [], view: {},
@@ -157,5 +158,16 @@ describe('plugin loading', () => {
     expect(loaded.map((p) => p.name)).toEqual(['ok']);
     expect(reg).toEqual({ behaviors: ['dance'], filters: ['crt'] });
     expect(errors).toEqual(['bad']);
+  });
+
+  it('a function strategy from a client plugin reaches the world generator', async () => {
+    const fn = () => {};
+    await loadClientPlugins(['strat'], {
+      registerBehavior: () => {},
+      registerFilter: () => {},
+      importModule: async () => ({ default: { name: 'strat', strategies: { 'plugin-strat': fn, opaque: {} } } }),
+    });
+    expect(getStrategy('plugin-strat')).toBe(fn);
+    expect(getStrategy('opaque')).toBeUndefined();
   });
 });

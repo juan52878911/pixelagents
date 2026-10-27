@@ -33,7 +33,7 @@ export const CSS = `
 .pa-chip{background:#4a3a08!important;border-color:var(--gold)!important;color:#fff1a8;animation:pa-blink 1s steps(2) infinite}
 @keyframes pa-blink{50%{background:#7a5c0c}}
 @media (prefers-reduced-motion:reduce){.pa-chip{animation:none}}
-.pa-feed{position:absolute;left:8px;top:92px;bottom:8px;width:290px;display:flex;flex-direction:column;background:rgba(16,14,22,.92);border:2px solid var(--line)}
+.pa-feed{position:absolute;left:8px;top:92px;max-height:calc(100% - 100px);width:290px;display:flex;flex-direction:column;background:rgba(16,14,22,.92);border:2px solid var(--line)}
 .pa-feed.closed{bottom:auto}
 .pa-feed.closed .pa-feed-body{display:none}
 .pa-feed-head{display:flex;gap:6px;align-items:center;padding:4px 6px;justify-content:space-between}

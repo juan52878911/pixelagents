@@ -118,8 +118,7 @@ describe('docs snippets', () => {
     expect(applyRules(ent('agent:a', { labels: { account: 'home' } }), cfg.classify).view.skin).toBe('home');
   });
 
-  // BLOCKER: CONFIG_SCHEMA.inputs only allows the 5 built-in types. `it.fails` flips to a failure once the schema is opened (see docs/plugins.md).
-  it.fails('custom input types pass config validation (inputs[].type is open)', () => {
+  it('custom input types pass config validation (inputs[].type is open)', () => {
     const cfg = { ...DEFAULT_CONFIG, inputs: [{ id: 't', type: 'ticker', adapter: 'queue', everySec: 2 }] } as unknown as PaConfig;
     const v = validate(cfg);
     expect(v.ok, JSON.stringify(v.errors).slice(0, 300)).toBe(true);

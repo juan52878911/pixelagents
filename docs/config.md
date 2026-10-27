@@ -27,7 +27,7 @@ Strings in `set` are templates: `{{labels.host}}`. Paths in `set` are written in
 | `server.port` | `integer` | yes | `4242` | min 1, max 65535 |
 | `server.token` | `string` |  |  | Required for remote ingest and federation. |
 | `server.dataDir` | `string` |  |  |  |
-| `inputs` | `object` \| `object` \| `object` \| `object` \| `object`[] | yes |  | Sources |
+| `inputs` | `object` \| `object` \| `object` \| `object` \| `object` \| `object`[] | yes |  | Sources |
 | `plugins` | `string`[] | yes |  | Plugins |
 | `classify` | `object`[] | yes |  | Classification rules |
 | `groups` | `object` | yes |  | Offices |
@@ -120,6 +120,16 @@ Strings in `set` are templates: `{{labels.host}}`. Paths in `set` are written in
 | `type` | `"hub"` | yes |  |
 | `url` | `string` | yes |  |
 | `token` | `string` |  |  |
+
+**Input type from a plugin** (`type: undefined`)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | `string` | yes | Id. Becomes the event source. |
+| `enabled` | `boolean` |  |  |
+| `adapter` | `string` |  | Adapter. Plugin adapter that parses each record. |
+| `options` | `object` |  |  |
+| `type` | `string` | yes |  |
 
 ### Effect entry (`effects[]`)
 
