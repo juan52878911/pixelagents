@@ -25,6 +25,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      # WebGL shader compile test (skipped in `check`, which has no usable GPU/browser)
+      - run: npx vitest run plugins/effects/test/compile.test.ts
+        env: { CI: 'true', PA_BROWSER_TESTS: '1' }
       - run: npx playwright test
         env: { CI: 'true' }
       - uses: actions/upload-artifact@v4
