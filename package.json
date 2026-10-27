@@ -2,16 +2,22 @@
   "name": "pixelagents-monorepo",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "plugins/*"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "packages/*",
+    "plugins/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json && tsc -p packages/web/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p packages/web/tsconfig.json && tsc -p packages/cli/tsconfig.json",
     "test": "vitest run",
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev -w @pixelagents/server",
     "check": "npm run typecheck && npm test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^20.14.0",
     "ajv": "^8.17.1",
     "tsx": "^4.19.0",

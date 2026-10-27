@@ -1,0 +1,16 @@
+{
+  "name": "pixelagents",
+  "version": "0.1.0",
+  "description": "Live pixel-art town of offices for your AI coding agents.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "bin": { "pixelagents": "bin/pixelagents.js" },
+  "files": ["bin", "dist", "README.md"],
+  "scripts": {
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
