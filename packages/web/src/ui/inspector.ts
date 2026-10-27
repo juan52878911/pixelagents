@@ -57,7 +57,8 @@ export function mountInspector(ctx: UiContext, opts: InspectorOptions = {}): () 
   const date = el('span', tid('hud-date'));
   const conn = el('span', tid('hud-conn', { class: 'pa-live', role: 'status' }), '');
   const chips = el('div', { class: 'pa-chips', 'aria-live': 'polite' });
-  const feedBtn = el('button', tid('feed-toggle', { type: 'button', 'aria-pressed': 'true' }), 'Feed');
+  const feedOpen = readPref('feed', false);
+  const feedBtn = el('button', tid('feed-toggle', { type: 'button', 'aria-pressed': String(feedOpen) }), 'Feed');
   const notifyBtn = el('button', tid('toggle-notify', { type: 'button', 'aria-pressed': String(notify), title: 'Notificación del navegador al pasar a esperar' }), 'Aviso');
   const soundBtn = el('button', tid('toggle-sound', { type: 'button', 'aria-pressed': String(sound), title: 'Sonido al pasar a esperar' }), 'Sonido');
   const settingsBtn = el('button', tid('settings', { type: 'button' }), 'Ajustes');
@@ -77,7 +78,7 @@ export function mountInspector(ctx: UiContext, opts: InspectorOptions = {}): () 
   // ---- feed ----
   const feedList = el('ol', { 'aria-label': 'Eventos recientes' });
   const feedFilter = el('input', tid('feed-filter', { type: 'search', placeholder: 'Filtrar feed', 'aria-label': 'Filtrar feed' }));
-  const feed = el('aside', tid('feed', { class: 'pa-feed', 'aria-label': 'Feed de eventos' }), undefined,
+  const feed = el('aside', tid('feed', { class: feedOpen ? 'pa-feed' : 'pa-feed closed', 'aria-label': 'Feed de eventos' }), undefined,
     el('div', { class: 'pa-feed-head' }, 'Feed'),
     el('div', { class: 'pa-feed-body' }, undefined, feedFilter, feedList));
 
@@ -319,6 +320,7 @@ export function mountInspector(ctx: UiContext, opts: InspectorOptions = {}): () 
   feedBtn.addEventListener('click', () => {
     const closed = feed.classList.toggle('closed');
     feedBtn.setAttribute('aria-pressed', String(!closed));
+    writePref('feed', !closed);
   });
   settingsBtn.addEventListener('click', () => opts.onOpenSettings?.());
   notifyBtn.addEventListener('click', () => {
