@@ -76,6 +76,12 @@ export function coreReduce(e: Entity, ev: PaEvent, historyMax: number): Entity {
       break;
     }
     case 'tool.post':
+      // A tool that finished was allowed to run: a pending permission wait is over.
+      if (e.status === 'waiting') {
+        const tool = str(a.tool) ?? e.activity?.tool;
+        e.status = 'working';
+        e.activity = act({ tool, detail: str(a.detail), category: categoryOf(tool) });
+      }
       break;
     case 'turn.start':
       e.status = 'thinking';

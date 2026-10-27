@@ -33,6 +33,9 @@ describe('core reducer', () => {
 
     s.ingest(ev(c.clock, A, 'waiting.permission', { tool: 'Bash' }));
     expect(get(A)).toMatchObject({ status: 'waiting', activity: { category: 'wait', tool: 'Bash' } });
+    // the tool ran after the prompt: back to working
+    s.ingest(ev(c.clock, A, 'tool.post', { tool: 'Bash', detail: 'ls' }));
+    expect(get(A)).toMatchObject({ status: 'working', activity: { tool: 'Bash', category: 'run' } });
     s.ingest(ev(c.clock, A, 'waiting.human'));
     expect(get(A)).toMatchObject({ status: 'waiting', activity: { category: 'wait' } });
 
