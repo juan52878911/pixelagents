@@ -213,10 +213,22 @@ export function copyRect(src: BufferPainter, dst: BufferPainter, x: number, y: n
 export function paintConstruction(wa: WorldArt, prev: WorldArt | null, w: WorldLayout, tb: number, out: BufferPainter): void {
   out.data.set(wa.full.data);
   const rv = w.build.reveal, dm = w.build.demolish;
-  // pending tiles show terrain; pending trees/bushes show the ground (they may overlap built tiles)
-  for (const r of rv) if (r.time > tb) copyRect(r.kind === 'office' || r.kind === 'path' ? wa.terrain : wa.ground, out, r.x, r.y, r.w, r.h);
+  // 1. pending trees/bushes/outdoor show the ground under them (they overlap neighbouring tiles)
+  for (const r of rv) if (r.time > tb && r.kind !== 'office' && r.kind !== 'path') copyRect(wa.ground, out, r.x, r.y, r.w, r.h);
+  // 2. pending tiles show terrain; office tiles also hide their east/south shadow band
+  const pendingPath = new Set<string>();
+  for (const r of rv) {
+    if (r.time > tb && r.kind === 'office') copyRect(wa.terrain, out, r.x, r.y, r.w + 2, r.h + 3);
+    else if (r.time > tb && r.kind === 'path') { copyRect(wa.terrain, out, r.x, r.y, r.w, r.h); pendingPath.add(r.x + ',' + r.y); }
+  }
+  // 3. built paths next to pending tiles get their art back
+  for (const k of w.path) {
+    const x = (k % w.cols) * TS, y = GY + Math.floor(k / w.cols) * TS;
+    if (!pendingPath.has(x + ',' + y)) copyRect(wa.ground, out, x, y, TS, TS);
+  }
+  // 4. what is still to be demolished shows the previous world
   if (prev) for (const r of dm) if (r.time > tb) copyRectFrom(prev.full, out, r.x, r.y, r.w, r.h);
-  // trees and bushes overlap each other: restore the revealed ones a pending neighbour may have hidden
+  // 5. revealed trees and bushes come back over whatever a pending neighbour hid
   for (const r of rv) if (r.time <= tb && r.kind !== 'office' && r.kind !== 'path') copyRect(wa.full, out, r.x, r.y, r.w, r.h);
   for (const r of rv) {
     const a = tb - r.time;

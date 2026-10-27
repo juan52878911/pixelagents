@@ -1,7 +1,10 @@
 // Scene e2e: real server (port 4350) fed by fixtures/claude-code.v1.jsonl + `vite preview` (5350),
 // headless system Chrome. Checks 4 agents in 3 offices, a waiting agent with its "!" bubble, the crt
 // filter of plugin-effects on the `screen` layer, takes scene-1.png (builders), scene-2.png (finished
-// town), scene-wait.png, scene-fx.png, and the mean frame time with 50 synthetic agents.
+// town, integer scale 3), scene-scale1.png (scale 1), scene-zoom.png (camera zoom 3 on an office),
+// scene-wait.png, scene-fx.png, scene-50.png (after growth), and the mean frame time with 50
+// synthetic agents. It also asserts pixel-perfect output: every device block of an rt pixel (and of a
+// world pixel under camera zoom) is one flat color, so no layer is sampled bilinearly.
 // Usage: node packages/web/scripts/scene-check.mjs   (SCENE_NOBUILD=1 to reuse dist/)
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -96,6 +99,46 @@ try {
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(here, 'scene-2.png') });
 
+  // pixel-perfect: blocks of effectiveScale×effectiveScale device pixels are flat at zoom 1, and
+  // blocks of (effectiveScale·zoom)² inside the world layer are flat under camera zoom
+  const flatness = (zoom) => page.evaluate(async (zoom) => {
+    const e = window.__pixelagents.engine, L = window.__pixelagents.scene.api.layout;
+    const o = L.offices[0];
+    e.setCamera(zoom > 1 ? Math.max(0, o.x - 8) : 0, zoom > 1 ? Math.max(0, o.y - 8) : 0, zoom);
+    await new Promise((r) => setTimeout(r, 120)); // let the ticker render the moved camera into the render texture
+    const out = e.app.renderer.extract.pixels(e.app.stage);
+    const { pixels: d, width: W } = out;
+    const s = e.effectiveScale, block = s * zoom;
+    // sample the office's top-left corner (static world layer: outline + wall). The extracted image
+    // starts at the view sprite's top-left, so device coordinates are relative to it.
+    const vx = 0, vy = 0;
+    const wx0 = zoom > 1 ? 8 : o.x, wy0 = zoom > 1 ? 8 : o.y; // world px of the office top-left relative to the camera
+    let bad = 0, total = 0;
+    const detail = [];
+    for (let by = 0; by < 6; by++) for (let bx = 0; bx < 4; bx++) {
+      const x0 = Math.round(vx + (wx0 + bx) * block), y0 = Math.round(vy + (wy0 + by) * block);
+      const i0 = (y0 * W + x0) * 4, r = d[i0], g = d[i0 + 1], b = d[i0 + 2];
+      let flat = true;
+      for (let yy = 0; yy < block && flat; yy++) for (let xx = 0; xx < block; xx++) {
+        const i = ((y0 + yy) * W + x0 + xx) * 4;
+        if (Math.abs(d[i] - r) > 1 || Math.abs(d[i + 1] - g) > 1 || Math.abs(d[i + 2] - b) > 1) { flat = false; break; }
+      }
+      total++; if (!flat) { bad++; const seen = new Set(); for (let yy = 0; yy < block; yy++) for (let xx = 0; xx < block; xx++) { const i = ((y0 + yy) * W + x0 + xx) * 4; seen.add(`${d[i]},${d[i + 1]},${d[i + 2]}`); } detail.push(`(${bx},${by}) ${[...seen].slice(0, 4).join(' | ')}`); }
+    }
+    return { bad, total, scale: s, zoom, detail, vx, vy, o: [o.x, o.y] };
+  }, zoom);
+  const f1 = await flatness(1);
+  check(`pixel-perfect at scale ${f1.scale}: every ${f1.scale}x${f1.scale} block is one color`, f1.bad === 0, `${f1.bad}/${f1.total} blocks blurred`);
+  const f3 = await flatness(3);
+  check(`pixel-perfect under camera zoom 3: every ${f3.scale * 3}x${f3.scale * 3} world block is one color`, f3.bad === 0, `${f3.bad}/${f3.total} blocks blurred ${f3.detail.join('; ')} view ${f3.vx},${f3.vy} office ${f3.o}`);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(here, 'scene-zoom.png') });
+  await page.evaluate(() => { const e = window.__pixelagents.engine; e.setCamera(0, 0, 1); e.setScale(1); });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(here, 'scene-scale1.png') });
+  await page.evaluate(() => window.__pixelagents.engine.setScale('fit'));
+  const before = await page.evaluate(() => window.__pixelagents.scene.api.layout.offices.map((o) => [o.id, o.tx, o.ty, o.tw, o.th]));
+
   const base = { v: 1, session: 's-laptop-2', agent: 'dev', account: 'work', host: 'laptop', cwd: '/home/dev/code/api', repo: 'api', branch: 'main' };
   await post([{ ...base, ts: new Date().toISOString(), kind: 'waiting.permission', tool: 'Bash', detail: 'npm test' }]);
   const waiting = await page.waitForFunction(() => window.__pixelagents.scene.actors().find((a) => a.behavior === 'wait' && a.bubble === '!' && a.visible), null, { timeout: 8000 })
@@ -136,6 +179,10 @@ try {
   }));
   const nAct = await page.evaluate(() => window.__pixelagents.scene.actors().filter((a) => a.visible).length);
   check(`mean frame < ${BUDGET_MS} ms with ${N_SYN} synthetic agents`, perf.mean < BUDGET_MS, `mean ${perf.mean.toFixed(2)} ms, p95 ${perf.p95?.toFixed(2)} ms over ${perf.n} frames, ${nAct} visible actors`);
+  // incremental growth: the first offices did not move when 5 new ones were built
+  const after = await page.evaluate(() => window.__pixelagents.scene.api.layout.offices.map((o) => [o.id, o.tx, o.ty, o.tw, o.th]));
+  const moved = before.filter((b) => { const a = after.find((x) => x[0] === b[0]); return a && (a[1] !== b[1] || a[2] !== b[2]); });
+  check('the town grew without moving the existing offices', after.length > before.length && moved.length === 0, `${before.length} → ${after.length} offices, moved: ${moved.map((m) => m[0]).join(',') || 'none'}`);
   await page.screenshot({ path: path.join(here, 'scene-50.png') });
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (err) {
