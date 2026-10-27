@@ -3,19 +3,40 @@
     "hook_event_name": "SessionStart",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
-    "source": "startup"
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "source": "startup",
+    "model": "claude-sonnet"
+  },
+  {
+    "hook_event_name": "SessionStart",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "source": "resume",
+    "seconds_since_last_response": 120,
+    "context_tokens": 42000
   },
   {
     "hook_event_name": "UserPromptSubmit",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
     "prompt": "SECRET PROMPT MUST NOT LEAK"
   },
   {
     "hook_event_name": "PreToolUse",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
     "tool_name": "Edit",
+    "tool_use_id": "toolu_1",
+    "effort": {
+      "level": "high"
+    },
     "tool_input": {
       "file_path": "/home/dev/code/web-app/src/app.ts",
       "old_string": "SECRET",
@@ -26,7 +47,10 @@
     "hook_event_name": "PreToolUse",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
     "tool_name": "Bash",
+    "tool_use_id": "toolu_2",
     "tool_input": {
       "command": "npm test -- --run"
     }
@@ -35,38 +59,129 @@
     "hook_event_name": "PostToolUse",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
     "tool_name": "Bash",
+    "tool_use_id": "toolu_2",
+    "duration_ms": 1234,
+    "tool_input": {
+      "command": "npm test -- --run"
+    },
     "tool_response": {
       "stdout": "SECRET OUTPUT"
     }
   },
   {
+    "hook_event_name": "PostToolUseFailure",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_3",
+    "duration_ms": 50,
+    "tool_input": {
+      "command": "false"
+    },
+    "error": "Exit code 1\nSECRET ERROR OUTPUT"
+  },
+  {
+    "hook_event_name": "PostToolUseFailure",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "tool_name": "Read",
+    "tool_use_id": "toolu_4",
+    "is_interrupt": true,
+    "tool_input": {
+      "file_path": "/x"
+    },
+    "error": "SECRET interrupted"
+  },
+  {
     "hook_event_name": "Notification",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
     "message": "Claude needs your permission to use Bash"
+  },
+  {
+    "hook_event_name": "Notification",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "notification_type": "permission_prompt",
+    "message": "SECRET: permission to run SECRET",
+    "title": "Permission"
+  },
+  {
+    "hook_event_name": "Notification",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "notification_type": "idle_prompt",
+    "message": "Claude is waiting for your input"
+  },
+  {
+    "hook_event_name": "Notification",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "notification_type": "auth_success",
+    "message": "SECRET token"
   },
   {
     "hook_event_name": "SubagentStart",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
-    "agent_id": "sub-1"
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "agent_id": "sub-1",
+    "agent_type": "Explore"
   },
   {
     "hook_event_name": "SubagentStop",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
-    "agent_id": "sub-1"
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "agent_id": "sub-1",
+    "agent_type": "Explore",
+    "agent_transcript_path": "fixtures/transcript.jsonl",
+    "last_assistant_message": "SECRET SUBAGENT REPORT"
   },
   {
     "hook_event_name": "Stop",
     "session_id": "abc",
-    "cwd": "/home/dev/code/web-app"
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "stop_hook_active": false,
+    "effort": {
+      "level": "high"
+    },
+    "last_assistant_message": "SECRET ANSWER MUST NOT LEAK"
+  },
+  {
+    "hook_event_name": "PreCompact",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "trigger": "auto",
+    "custom_instructions": "SECRET INSTRUCTIONS"
   },
   {
     "hook_event_name": "SessionEnd",
     "session_id": "abc",
     "cwd": "/home/dev/code/web-app",
-    "reason": "exit"
+    "transcript_path": "fixtures/transcript.jsonl",
+    "permission_mode": "default",
+    "reason": "prompt_input_exit"
   }
 ]

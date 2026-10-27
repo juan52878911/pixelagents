@@ -72,10 +72,10 @@ function summary(ev: PaEvent): string | undefined {
 
 const bump = (e: Entity, k: string, by = 1): number => (e.metrics[k] = (e.metrics[k] ?? 0) + by);
 
-/** A pending wait is over: record how long it took. */
-function closeWait(e: Entity, now: number): void {
+/** A pending wait is over: record how long it took (the source's own figure wins over the clock). */
+function closeWait(e: Entity, now: number, reported?: number): void {
   if (e.status !== 'waiting' || !e.activity) return;
-  const ms = now - Date.parse(e.activity.since);
+  const ms = reported ?? now - Date.parse(e.activity.since);
   if (!Number.isFinite(ms) || ms < 0) return;
   e.metrics.wait_ms_last = ms;
   bump(e, 'wait_ms_total', ms);
@@ -150,7 +150,7 @@ export function coreReduce(e: Entity, ev: PaEvent, historyMax: number): Entity {
     case 'tool.post':
       // A tool that finished was allowed to run: a pending permission wait is over.
       if (e.status === 'waiting') {
-        closeWait(e, nowMs);
+        closeWait(e, nowMs, num(a.wait_ms));
         const tool = str(a.tool) ?? e.activity?.tool;
         e.status = 'working';
         e.activity = act({ tool, detail: str(a.detail), category: categoryOf(tool) });
@@ -160,7 +160,6 @@ export function coreReduce(e: Entity, ev: PaEvent, historyMax: number): Entity {
         bump(e, 'error_streak');
         if (e.turn && !e.turn.until) e.turn.errors++;
       } else if (e.metrics.error_streak) e.metrics.error_streak = 0;
-      if (num(a.wait_ms) !== undefined) { e.metrics.wait_ms_last = num(a.wait_ms)!; bump(e, 'wait_ms_total', num(a.wait_ms)!); }
       break;
     case 'turn.start':
       e.status = 'thinking';
@@ -207,9 +206,8 @@ export function coreReduce(e: Entity, ev: PaEvent, historyMax: number): Entity {
       bump(e, 'compactions');
       break;
     case 'state':
-      if (e.status === 'waiting' && str(a.status) && str(a.status) !== 'waiting') closeWait(e, nowMs);
+      if (e.status === 'waiting' && str(a.status) && str(a.status) !== 'waiting') closeWait(e, nowMs, num(a.wait_ms));
       if (str(a.status)) e.status = str(a.status)!;
-      if (num(a.wait_ms) !== undefined) { e.metrics.wait_ms_last = num(a.wait_ms)!; bump(e, 'wait_ms_total', num(a.wait_ms)!); }
       break;
     case 'metric':
       for (const [k, v] of Object.entries(a)) if (typeof v === 'number' && Number.isFinite(v)) e.metrics[k] = v;
