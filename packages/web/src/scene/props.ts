@@ -81,7 +81,8 @@ export function drawRug(g: Painter, rx: number, ry: number, rw: number, col: str
     return;
   }
   for (let y = ry + 2; y < ry + 40; y += 3) g.rect(rx + rw, y, 1, 1, col);
-  const lab = label.slice(0, Math.max(1, Math.floor((rw - 6) / 4)));
+  // as in the prototype, the label may run past a narrow rug instead of being cut
+  const lab = label.slice(0, 16);
   g.rect(rx + 2, ry + 2, txtW(lab) + 4, 7, 'rgba(0,0,0,0.35)');
   g.text(lab, rx + 4, ry + 3, '#ffe9a8');
 }
