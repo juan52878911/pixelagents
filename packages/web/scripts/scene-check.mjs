@@ -47,7 +47,8 @@ function run(cmd, args, opts) {
 }
 const cleanup = () => {
   for (const p of procs) { try { process.kill(-p.pid, 'SIGTERM'); } catch { /* gone */ } }
-  fs.rmSync(tmp, { recursive: true, force: true });
+  // the server may still flush its snapshot into tmp while it exits
+  try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch { /* left in the OS temp dir */ }
 };
 process.on('exit', cleanup);
 
