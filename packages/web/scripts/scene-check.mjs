@@ -18,10 +18,14 @@ const BUDGET_MS = 16;
 const N_SYN = 50;
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pa-scene-'));
+// The fixture sessions all end (ended → leave, offices empty); a copy without `session.end`
+// keeps the 4 agents seated so the finished town shows them at their desks.
+const live = path.join(tmp, 'claude-code.live.jsonl');
+fs.writeFileSync(live, fs.readFileSync(path.join(repo, 'fixtures', 'claude-code.v1.jsonl'), 'utf8').split('\n').filter((l) => !l.includes('"kind":"session.end"')).join('\n'));
 const fx = JSON.parse(fs.readFileSync(path.join(repo, 'fixtures', 'config.fixtures.json'), 'utf8').replaceAll('__REPO__', repo));
 const cfg = {
   ...fx,
-  inputs: [...fx.inputs.filter((i) => i.id === 'fx'), { id: 'http', type: 'http', adapter: 'claude-code' }],
+  inputs: [...fx.inputs.filter((i) => i.id === 'fx').map((i) => ({ ...i, path: live })), { id: 'http', type: 'http', adapter: 'claude-code' }],
   plugins: ['@pixelagents/plugin-claude-code', '@pixelagents/plugin-pop'],
 };
 fs.writeFileSync(path.join(tmp, 'config.json'), JSON.stringify(cfg));
