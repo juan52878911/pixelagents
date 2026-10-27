@@ -36,7 +36,7 @@ const MAX_OFFICES = 12;
 /** Free desks a zone may keep before its office is re-laid (1 is always kept for the next arrival). */
 export const MAX_SPARE = 3;
 const SIGN_MAX = 108; // px for the label of a sign
-export const LOBBY_TY = 6, LOBBY_W = 8, LOBBY_H = 4; // rows ty..ty+1 wall with the entrance, ty+2..ty+3 floor
+export const LOBBY_TY = 6, LOBBY_W = 10, LOBBY_H = 4; // rows ty..ty+1 wall with the entrance, ty+2..ty+3 floor
 /** first row of the floor: corridors and offices live from here down; above is outdoors */
 export const INSIDE_R0 = LOBBY_TY + 2;
 const OFFICE_TY0 = LOBBY_TY + 4; // first row a hall may start on (its door strip sits on the lobby floor rows)
@@ -173,7 +173,7 @@ function setHall(o: Draft, tx: number, ty: number, tw: number, th: number): void
 /** The lobby: centred, `LOBBY_W` wide, wall rows ty..ty+1 (entrance door in the middle) and floor rows ty+2..ty+3. */
 export function makeLobby(cols: number): Lobby {
   const tx = Math.floor((cols - LOBBY_W) / 2), ty = LOBBY_TY;
-  const dc = tx + (LOBBY_W >> 1) - 1;
+  const dc = tx + LOBBY_W - 3; // the entrance sits at the right end of the front, after the sign
   return { tx, ty, tw: LOBBY_W, th: LOBBY_H, x: tx * TS, y: GY + ty * TS, w: LOBBY_W * TS, h: LOBBY_H * TS, door: (dc - tx) * TS - 2, doorTile: [dc, ty - 1], entry: [dc, ty + 2] };
 }
 
@@ -477,8 +477,10 @@ export function generateWorld(input: WorldInput, prev?: WorldLayout | null): Wor
   const wallDecor = input.decor.filter((d) => d.place === 'wall');
   const outdoor: PlacedDecor[] = [];
   if (floorDecor.length) {
+    // a piece beside the forecourt (never in front of the door)
     const d = floorDecor[th(3, plaza[0], plaza[1]) % floorDecor.length]!;
-    outdoor.push({ id: d.id, x: plaza[0] * TS + 12 - (d.w >> 1), y: GY + plaza[1] * TS + 20 - d.h, w: d.w, h: d.h });
+    const y = GY + (plaza[1] + 3) * TS - d.h;
+    for (const x of [plaza[0] * TS - d.w - 4, (plaza[0] + 3) * TS + 4]) if (clear(x - 1, y - 1, d.w + 2, d.h + 2)) { outdoor.push({ id: d.id, x, y, w: d.w, h: d.h }); break; }
   }
   if (floorDecor.length) for (let r = 2; r < rows - 2 && outdoor.length < 4; r++) for (let c = 1; c < cols - 3 && outdoor.length < 4; c++) {
     const h = th(4, c, r);
