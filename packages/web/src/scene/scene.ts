@@ -7,6 +7,7 @@ import type { Entity, PaConfig } from '@pixelagents/protocol';
 import { type Actor, type BehaviorContext, setBehavior } from '../engine/behaviors.js';
 import type { Engine } from '../engine/engine.js';
 import type { Entity as EcsEntity } from '../engine/ecs.js';
+import { FONT_3x5, FONT_4x6, fit, measure } from '../engine/fonts.js';
 import { BufferPainter } from '../engine/painter.js';
 import { PainterLayer } from '../engine/painter-gpu.js';
 import { generateWorld, relayout } from '../world/index.js';
@@ -49,6 +50,8 @@ export class Scene implements SceneApi {
   private now: () => Date;
   private config: PaConfig | null = null;
   private worldArt: WorldArt | null = null;
+  /** Art of the layout before the current one (what demolition crews take down). */
+  private prevArt: WorldArt | null = null;
   private worldLayer: PainterLayer | null = null;
   private dyn: PainterLayer | null = null;
   private inputKey = '';
@@ -189,11 +192,12 @@ export class Scene implements SceneApi {
     if (key !== this.inputKey) {
       this.inputKey = key;
       this.layout = this.layout ? relayout(this.layout, input) : generateWorld(input);
-      const geo = JSON.stringify([this.layout.seed, this.layout.season, this.layout.rows, this.layout.offices.map((o) => [o.id, o.tx, o.ty, o.tw, o.th, o.strategy]), this.layout.path.length]);
+      const geo = JSON.stringify([this.layout.seed, this.layout.season, this.layout.rows, this.layout.epoch]);
       if (geo !== this.geoKey) {
         this.geoKey = geo;
+        this.prevArt = this.worldArt;
         this.repaintWorld();
-        this.building = this.config?.world?.builders !== false;
+        this.building = this.config?.world?.builders !== false && this.layout.build.buildEnd > 0;
         this.buildT0 = this.building ? clock.t : -1e9;
         if (this.building) this.engine.cacheLayer('world', false);
       }
@@ -263,10 +267,11 @@ export class Scene implements SceneApi {
     if (this.building) {
       if (this.tb >= L.build.buildEnd) {
         this.building = false;
+        this.prevArt = null;
         this.worldLayer.painter.data.set(wa.full.data); this.worldLayer.painter.dirty = true; this.worldLayer.flush();
         this.engine.cacheLayer('world', true);
       } else {
-        paintConstruction(wa, L, this.tb, this.worldLayer.painter);
+        paintConstruction(wa, this.prevArt, L, this.tb, this.worldLayer.painter);
         this.worldLayer.flush();
       }
     }
@@ -305,7 +310,8 @@ export class Scene implements SceneApi {
     const L = this.layout!;
     const art = this.art;
     const tb = this.tb;
-    if (tb >= L.build.buildEnd) for (const d of L.outdoor) drawDeco(g, art, d, t);
+    const pendingOut = new Set(L.build.reveal.filter((r) => r.kind === 'outdoor' && r.time > tb).map((r) => r.x + ',' + r.y));
+    for (const d of L.outdoor) if (!pendingOut.has(d.x + ',' + d.y)) drawDeco(g, art, d, t);
     const byOffice = new Map<OfficeLayout, ActorData[]>();
     const minis = new Map<string, ActorData[]>();
     for (const a of this.actors.values()) {
@@ -345,10 +351,17 @@ export class Scene implements SceneApi {
         }
         if (!xs.length && !grow) continue;
         const base = xs.length ? xs : [extra];
-        const rx = Math.min(...base) - 5, rw = Math.max(...base) + 29 - rx;
+        const rx = Math.min(...base) - 5, ry = (z.slots[0]?.dy ?? o.deskY) - 26;
+        let rw = Math.max(...base) + 29 - rx;
+        // the label must fit: widen the rug into the free gap before the next rug, else truncate
+        let right = o.x + o.w - 24;
+        for (const q of o.zones) for (const sq of q.slots) if (q !== z && sq.dy === ry + 26 && sq.dx - 5 > rx) right = Math.min(right, sq.dx - 5 - 2);
+        const labelW = measure(z.label, FONT_4x6) + 8;
+        rw = Math.max(rw, Math.min(labelW, right - rx));
+        const label = fit(z.label, rw - 8, FONT_4x6);
         let w = rw;
         if (xs.length && grow) w += Math.round((Math.max(extra + 29 - rx, rw) - rw) * Math.min(1, grow * 1.5));
-        drawRug(g, rx, (z.slots[0]?.dy ?? o.deskY) - 26, w, RUGS[strHash(z.id) % RUGS.length]!, z.label.toUpperCase(), xs.length ? 1 : grow);
+        drawRug(g, rx, ry, w, RUGS[strHash(z.id) % RUGS.length]!, label, xs.length ? 1 : grow);
       }
       const door = list.some((d) => d.door), ding = list.reduce((m, d) => Math.max(m, d.ding), 0);
       drawDoor(g, art, o.x + o.door, o.y, door, ding);
@@ -498,8 +511,8 @@ export class Scene implements SceneApi {
       const look = d?.look ?? lookFor('default', 7, this.config);
       const pa = d ? this.dim(d.id, g) : g.alpha(1);
       drawPod(g, this.art, s.dx, s.dy, look, d?.seed ?? 0, st, t, d?.pod ?? {});
-      const nm = (d?.ent.labels?.name ?? d?.id.split(':').pop() ?? '').toUpperCase().slice(0, 6);
-      if (nm) g.text(nm, s.dx + Math.round((22 - txtW(nm)) / 2), s.dy + 33, '#cfd6de');
+      const nm = fit(d?.ent.labels?.name ?? d?.id.split(':').pop() ?? '', 22, FONT_3x5);
+      if (nm) g.text(nm, s.dx + Math.round((22 - measure(nm, FONT_3x5)) / 2), s.dy + 33, '#cfd6de');
       if (d && this.selected === d.id) this.drawMarker(g, s.dx + 11, s.dy - 4, t);
       g.alpha(pa);
       if (fresh < 0.6) poof(g, s.dx + 11, s.dy + 14, fresh / 0.6);
@@ -547,21 +560,23 @@ export class Scene implements SceneApi {
     return sum;
   }
 
+  /** Two builders per crew hammer along its tile order (building or demolishing), with a poof in and out. */
   private drawBuilders(g: BufferPainter, L: WorldLayout, t: number): void {
     const tb = this.tb;
-    L.offices.forEach((o, oi) => {
-      const s = o.buildStart, D = o.buildDur, N = o.order.length;
+    L.build.crews.forEach((cw, ci) => {
+      const s = cw.start, D = cw.dur, N = cw.order.length;
       if (!N || tb < s - 0.3 || tb > s + D + 0.6) return;
       for (let b = 0; b < 2; b++) {
         const fi = Math.max(0, Math.min(N - 1, ((tb - s) / D) * N));
         let i = Math.floor(fi); if (i % 2 !== b) i = Math.max(0, i - 1);
         const j = Math.min(N - 1, i + 2), f = Math.max(0, Math.min(1, (fi - i) / 2));
-        const A = o.order[i]!, B = o.order[j]!;
+        const A = cw.order[i]!, B = cw.order[j]!;
         const x = A[0] * 8 + 4 + (B[0] - A[0]) * 8 * f - 5, y = GY + A[1] * 8 + 4 + (B[1] - A[1]) * 8 * f - 13;
-        const look = builderLook(30 + oi * 2 + b);
+        const look = builderLook(30 + ci * 2 + b);
         if (tb < s) { poof(g, Math.round(x + 5), Math.round(y + 8), (tb - s + 0.3) / 0.3); continue; }
         if (tb > s + D) { const q = (tb - s - D) / 0.6; if (q < 0.5) drawBuilder(g, this.art, x, y, look, t + b * 0.3); poof(g, Math.round(x + 5), Math.round(y + 8), q); continue; }
         drawBuilder(g, this.art, x, y, look, t + b * 0.3);
+        if (cw.kind === 'demolish') for (let k = 0; k < 3; k++) { const h = hash(k * 17 + ci + Math.floor(t * 12)); g.px(Math.round(x + 2 + (h % 12)), Math.round(y + 10 + ((h >>> 4) % 6)), k % 2 ? '#d8c8a0' : '#8a8399'); }
       }
     });
   }

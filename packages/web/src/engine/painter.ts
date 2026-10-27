@@ -1,4 +1,7 @@
+import { FONT_3x5, type BitmapFont, drawGlyphs, measure } from './fonts.js';
 import { parseColor } from './px.js';
+
+export { FONT, FONT_3x5, FONT_4x6, FONT_5x7, fit, measure, plain, type BitmapFont } from './fonts.js';
 
 /** Procedural drawing API for props (fire, ice, thermometers, gags), same calls as the prototype. */
 export interface Painter {
@@ -6,26 +9,14 @@ export interface Painter {
   rect(x: number, y: number, w: number, h: number, color: string): void;
   /** rows of palette keys ('.' or unknown key = transparent). */
   sprite(rows: readonly string[], x: number, y: number, pal: Record<string, string>, flip?: boolean): void;
-  text(s: string, x: number, y: number, color: string, scale?: number): void;
+  /** Bitmap text (uppercase, diacritics stripped); default font 3×5 with 4 px advance. */
+  text(s: string, x: number, y: number, color: string, scale?: number, font?: BitmapFont): void;
   /** Global alpha (0..1) for the following calls. Returns the previous value. */
   alpha(a: number): number;
 }
 
-/** 3×5 pixel font of the prototype. Each glyph: 15 bits, row-major. */
-export const FONT: Record<string, string> = {
-  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111',
-  F: '111100110100100', G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010',
-  K: '101101110101101', L: '100100100100111', M: '101111111101101', N: '110101101101101', O: '010101101101010',
-  P: '110101110100100', Q: '010101101110011', R: '110101110101101', S: '011100010001110', T: '111010010010010',
-  U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101', Y: '101101010010010',
-  Z: '111001010100111', '0': '111101101101111', '1': '010110010010111', '2': '110001010100111', '3': '110001010001110',
-  '4': '101101111001001', '5': '111100110001110', '6': '011100111101111', '7': '111001010010010', '8': '111101111101111',
-  '9': '111101111001110', $: '011110010011110', '%': '101001010100101', '.': '000000000000010', ':': '000010000010000',
-  '-': '000000111000000', '@': '010101111100011', '/': '001001010100100', '!': '010010010000010', '?': '110001010000010',
-  ' ': '000000000000000', '·': '000000010000000', '+': '000010111010000', _: '000000000000111',
-};
-
-export function textWidth(s: string, scale = 1): number { return (s.length * 4 - 1) * scale; }
+/** Width of `s` in the 3×5 font (same as `measure(s, FONT_3x5, scale)`). */
+export function textWidth(s: string, scale = 1, font: BitmapFont = FONT_3x5): number { return measure(s, font, scale); }
 
 /** Painter over a premultiplied-free RGBA buffer (source-over blending). Pure; no allocation per call. */
 export class BufferPainter implements Painter {
@@ -68,19 +59,9 @@ export class BufferPainter implements Painter {
     }
   }
 
-  text(s: string, x: number, y: number, color: string, scale = 1): void {
+  text(s: string, x: number, y: number, color: string, scale = 1, font: BitmapFont = FONT_3x5): void {
     const c = parseColor(color);
-    s = s.toUpperCase();
-    x = Math.round(x); y = Math.round(y);
-    for (let i = 0; i < s.length; i++) {
-      const g = FONT[s[i]!];
-      if (!g) continue;
-      for (let k = 0; k < 15; k++) {
-        if (g[k] !== '1') continue;
-        const gx = x + (i * 4 + (k % 3)) * scale, gy = y + Math.floor(k / 3) * scale;
-        for (let dy = 0; dy < scale; dy++) for (let dx = 0; dx < scale; dx++) this.put(gx + dx, gy + dy, c[0], c[1], c[2], c[3]);
-      }
-    }
+    drawGlyphs((px, py) => this.put(px, py, c[0], c[1], c[2], c[3]), s, Math.round(x), Math.round(y), font, scale);
   }
 
   /** Restricts drawing to a rectangle (null clears). Returns the previous clip. */

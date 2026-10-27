@@ -27,6 +27,8 @@ export interface Camera { x: number; y: number; zoom: number; }
 export type FrameHook = (dtSec: number, frameMs: number) => void;
 
 const MAX_ZOOM = 4;
+/** Options of every cached layer: logical resolution, no antialias, nearest sampling. */
+export const CACHE_OPTS = { resolution: 1, antialias: false, scaleMode: 'nearest' } as const;
 
 /**
  * Pixel-perfect engine: the scene is drawn into a `width×height` RenderTexture (logical resolution)
@@ -167,10 +169,14 @@ export class Engine {
     for (const l of LAYERS) this.setLayerFilters(l, built[l]);
   }
 
-  /** Bakes a mostly-static layer into a texture (re-bake with `cacheLayer(name, true)` after changes). */
+  /**
+   * Bakes a mostly-static layer into a texture (re-bake with `cacheLayer(name, true)` after changes).
+   * The cache texture must be sampled `nearest`: Pixi's default for `cacheAsTexture` is linear, which
+   * blurs the whole layer as soon as the camera zooms (the sprites drawn directly stay crisp).
+   */
   cacheLayer(layer: LayerName, on = true): void {
     const c = this.layers[layer];
-    if (on) { c.cacheAsTexture({ resolution: 1, antialias: false }); c.updateCacheTexture(); }
+    if (on) { c.cacheAsTexture(CACHE_OPTS); c.updateCacheTexture(); }
     else c.cacheAsTexture(false);
   }
 

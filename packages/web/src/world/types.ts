@@ -72,12 +72,21 @@ export interface BuilderPath {
 }
 
 export interface RevealItem {
-  kind: 'office' | 'path' | 'tree' | 'bush';
+  kind: 'office' | 'path' | 'tree' | 'bush' | 'outdoor';
   x: number;
   y: number;
   w: number;
   h: number;
   time: number;
+}
+
+/** A crew of two builders hammering along `order` (tiles) from `start` for `dur` seconds. */
+export interface Crew {
+  id: string;
+  kind: 'build' | 'demolish';
+  order: Tile[];
+  start: number;
+  dur: number;
 }
 
 export interface OfficeLayout {
@@ -112,6 +121,14 @@ export interface OfficeLayout {
   poster: number | null;
   wallDeco: PlacedDecor[];
   decor: PlacedDecor[];
+  /** every owned tile (hall + wings), row-major */
+  tiles: Tile[];
+  /** tile inside the hall right under the door (where walkers enter) */
+  entry: Tile;
+  /** px: first x usable by desks (after the racks) */
+  startX: number;
+  /** rebuilt in this layout (builders animate it); false = untouched since the previous layout */
+  changed: boolean;
   /** build order: tiles flooded from the door */
   order: Tile[];
   buildStart: number;
@@ -134,13 +151,19 @@ export interface WorldLayout {
   bushes: { c: number; r: number; x: number; y: number }[];
   outdoor: PlacedDecor[];
   build: {
+    /** what appears (new/rebuilt offices, new paths, trees…) and when, relative to this layout */
     reveal: RevealItem[];
+    /** what was standing in the previous layout and goes away (shown from the old art until `time`) */
+    demolish: RevealItem[];
+    crews: Crew[];
     builders: BuilderPath[];
     pathTimes: number[];
     treeTimes: number[];
     bushTimes: number[];
     buildEnd: number;
   };
+  /** bumps on every layout whose geometry differs from the previous one */
+  epoch: number;
   /** hints to regenerate with the same office/agent order */
   order: { offices: string[]; agents: Record<string, string[]> };
 }
