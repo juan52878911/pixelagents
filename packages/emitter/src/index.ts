@@ -1,5 +1,5 @@
 /** Owner: W2. Hook emitter helpers (buildHookLine), hook installation and the `pixelagents agent` forwarder. */
-export { buildHookLine, resolveRepo, nodeHookFs, type HookFs, type BuildOptions } from './hook-line.js';
+export { buildHookLine, resolveRepo, nodeHookFs, turnUsageFromTranscript, errorKind, TRANSCRIPT_TAIL_BYTES, type HookFs, type BuildOptions, type TurnUsage } from './hook-line.js';
 export {
   installHooks,
   uninstallHooks,

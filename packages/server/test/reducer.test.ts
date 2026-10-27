@@ -41,7 +41,8 @@ describe('core reducer', () => {
 
     s.ingest(ev(c.clock, A, 'metric', { cost_usd: 0.5, tokens: 100, note: 'ignored' }));
     s.ingest(ev(c.clock, A, 'metric', { cost_usd: 0.75 }));
-    expect(get(A).metrics).toEqual({ cost_usd: 0.75, tokens: 100 });
+    expect(get(A).metrics).toMatchObject({ cost_usd: 0.75, tokens: 100 });
+    expect(get(A).metrics.note).toBeUndefined();
 
     s.ingest(ev(c.clock, A, 'state', { status: 'frozen', reason: 'vm' }));
     expect(get(A).status).toBe('frozen');

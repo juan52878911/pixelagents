@@ -46,9 +46,9 @@ describe('nod adapter', () => {
   it('permission, tools and forks', () => {
     const evs = run();
     expect(evs.find((e) => e.kind === 'tool.pre')!.attrs).toEqual({ tool: 'Grep' });
-    expect(evs.find((e) => e.kind === 'tool.post')!.attrs).toEqual({ tool: 'Grep', ok: true });
+    expect(evs.find((e) => e.kind === 'tool.post')!.attrs).toEqual({ tool: 'Grep', ok: true, duration_ms: 120 });
     expect(evs.find((e) => e.kind === 'waiting.permission')!.attrs).toEqual({ tool: 'Grep' });
-    expect(evs.find((e) => e.kind === 'state')!.attrs).toEqual({ status: 'working' });
+    expect(evs.find((e) => e.kind === 'state')!.attrs).toEqual({ status: 'working', wait_ms: 2400, reason: 'allow' });
     const f = evs.find((e) => e.kind === 'fork.start')!;
     expect(f.parent).toBe(f.entity.replace(/^subagent:(.+)-sub-a$/, 'agent:$1'));
   });

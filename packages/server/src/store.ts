@@ -11,7 +11,7 @@ import {
   type Reducer,
   type StateSnapshot,
 } from '@pixelagents/protocol';
-import { coreReduce, newEntity } from './reducer.js';
+import { coreReduce, decayIntensity, newEntity, reduceParent } from './reducer.js';
 
 export interface StoreDeps {
   config(): PaConfig;
@@ -60,6 +60,13 @@ export class Store {
     } else {
       this.drop(ev.entity);
     }
+    if (ev.parent && (ev.kind === 'fork.start' || ev.kind === 'fork.end')) {
+      const parent = this.raw.get(ev.parent);
+      if (parent && !this.hubOwner.has(parent.id)) {
+        reduceParent(parent, ev, this.raw.values());
+        this.dirty.add(parent.id);
+      }
+    }
     this.events.push(ev);
     this.deps.onDirty();
   }
@@ -87,6 +94,10 @@ export class Store {
         changed = true;
       } else if (e.status === 'idle' && age > t.sleepAfterSec * 1000) {
         e.status = 'sleeping';
+        this.dirty.add(id);
+        changed = true;
+      }
+      if (decayIntensity(e, now)) {
         this.dirty.add(id);
         changed = true;
       }
@@ -130,6 +141,7 @@ export class Store {
       view: { ...e.view },
       metrics: { ...e.metrics },
       activity: e.activity && { ...e.activity },
+      turn: e.turn && { ...e.turn },
       history: [] as Entity['history'],
     };
     const c = (cfg.classify.length ? applyRules(shell, cfg.classify) : shell) as Entity;

@@ -16,8 +16,10 @@ export const HOOK_EVENTS = [
   'SubagentStart',
   'SubagentStop',
   'Notification',
+  'PostToolUseFailure',
+  'PreCompact',
 ] as const;
-const MATCHER_EVENTS = new Set<string>(['PreToolUse', 'PostToolUse']);
+const MATCHER_EVENTS = new Set<string>(['PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'PreCompact']);
 
 export interface HookCommand {
   type: 'command';

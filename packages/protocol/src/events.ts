@@ -36,8 +36,26 @@ export const CORE_KINDS = [
   'state', // generic status change: attrs: { status, reason? }
   'metric', // attrs: { name: value, … } numbers merged into entity.metrics
   'heartbeat', // keeps the entity alive, no change
+  'compact', // the agent's context was compacted: attrs: { trigger?: 'auto' | 'manual' }
 ] as const;
 export type CoreKind = (typeof CORE_KINDS)[number];
+
+/**
+ * Optional attrs the core reducer understands on some kinds (all additive, all numbers or short enums):
+ * - session.start: { model?, source?: 'startup'|'resume'|'clear'|'compact'|'fork', permission_mode?, agent_type? }
+ * - session.end:   { reason? }
+ * - tool.post:     { tool, ok?, error?: short kind ('exit 1', 'interrupt', 'error'), duration_ms? }
+ * - turn.end:      { duration_ms?, steps?, usage?: TokenUsage, model?, effort?, context_tokens?, outcome? }
+ * - fork.start:    { agent_type?, model? }
+ * - waiting.*:     { tool?, reason? }; a later `state`/`tool.post` may carry { wait_ms? }
+ * - compact:       { trigger? }
+ */
+export interface TokenUsage {
+  input?: number;
+  output?: number;
+  cache_read?: number;
+  cache_write?: number;
+}
 
 /** Event line written by the Claude Code hook emitter (packages/emitter). Version 1 of the wire format. */
 export interface HookLine {
@@ -56,4 +74,18 @@ export interface HookLine {
   detail?: string; // ≤120 chars: path, pattern, command or url only
   model?: string;
   parent?: string; // session id of the parent for subagents
+  // ---- additive, all optional: structure and numbers only, never text ----
+  source?: string; // SessionStart.source, PreCompact.trigger
+  reason?: string; // SessionEnd.reason
+  agentType?: string; // SubagentStart/Stop.agent_type, SessionStart.agent_type
+  permissionMode?: string;
+  effort?: string; // effort.level when the hook carries it
+  ok?: boolean; // tool.post: false on PostToolUseFailure
+  error?: string; // short error kind ("exit 1", "interrupt", "error"), never the message
+  durationMs?: number; // PostToolUse.duration_ms
+  usage?: TokenUsage; // turn.end / fork.end: tokens of the turn, read from the transcript (numbers only)
+  contextTokens?: number; // size of the context at the last step (input + cache tokens)
+  steps?: number; // assistant steps in the turn
+  turnMs?: number; // wall time of the turn as seen in the transcript
+  usageModel?: string; // model reported by the transcript for the turn
 }

@@ -45,6 +45,24 @@ export interface ViewProps {
   [key: string]: unknown;
 }
 
+/** The turn in progress (or the last one, when `until` is set). Kept by the core reducer. */
+export interface TurnState {
+  /** ISO time the turn started (turn.start). */
+  since: string;
+  /** Set when the turn finished (turn.end); the next turn.start replaces the whole object. */
+  until?: string;
+  /** Ordinal of this turn in the session (1-based). */
+  n: number;
+  /** Tool calls (tool.pre) so far in this turn. */
+  tools: number;
+  /** Failed tool calls in this turn. */
+  errors: number;
+  /** Subagents launched during this turn. */
+  forks: number;
+  /** ISO time of the last tool call, for the intensity decay. */
+  lastToolAt?: string;
+}
+
 export interface Entity {
   id: string;
   /** "agent", "subagent", "vm", "host", … (prefix of the id). */
@@ -53,8 +71,15 @@ export interface Entity {
   labels: Record<string, string>;
   status: EntityStatus;
   activity?: Activity;
-  /** Numbers: cost_usd, tokens, cpu_pct, load… */
+  /**
+   * Numbers: cost_usd, tokens, cpu_pct, load… The core reducer keeps these (all optional, present once
+   * seen): turns, tools, errors, error_streak, compactions, forks, subagents_live, tokens_in, tokens_out,
+   * tokens_cache_read, tokens_cache_write, turn_ms, turn_tools, turn_tokens_out, context_tokens,
+   * waits, wait_ms_last, wait_ms_total, tools_per_min, intensity (0..100).
+   */
   metrics: Record<string, number>;
+  /** Current or last turn, when the source reports turns. */
+  turn?: TurnState;
   firstSeen: string;
   lastSeen: string;
   /** Most recent last, capped (config `history.max`). */

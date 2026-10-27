@@ -68,7 +68,8 @@ describe('buildHookLine rules', () => {
   it('model, notification, unknown hook', () => {
     expect(b({ hook_event_name: 'SessionStart', model: 'opus' }).model).toBe('opus');
     expect(b({ hook_event_name: 'Notification', message: 'Claude is waiting for your input' }).kind).toBe('waiting.human');
-    expect(b({ hook_event_name: 'PreCompact' })).toMatchObject({ kind: 'other', tool: 'PreCompact' });
+    expect(b({ hook_event_name: 'PreCompact', trigger: 'auto' })).toMatchObject({ kind: 'compact', source: 'auto' });
+    expect(b({ hook_event_name: 'Setup' })).toMatchObject({ kind: 'other', tool: 'Setup' });
     expect(buildHookLine({ nope: 1 }, {}, noGit, opts)).toBeNull();
     expect(buildHookLine('x', {}, noGit, opts)).toBeNull();
   });
