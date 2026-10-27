@@ -1,6 +1,6 @@
 // Usage: node packages/web/scripts/world-ascii.mjs <seed> [offices=5] [agentsPerOffice=4]
 // Prints the generated town as ASCII: letters = offices (A..L), '#' hall wall row, '.' grass,
-// ':' path, 'P' plaza, 'T' tree, 'b' bush, 'D' door.
+// ':' path, 'P' plaza, 'T' tree, 'b' bush, '^' door.
 import { tsImport } from 'tsx/esm/api';
 
 const { generateWorld } = await tsImport('../src/world/index.ts', import.meta.url);
@@ -33,7 +33,7 @@ for (const k of w.path) set(k % w.cols, Math.floor(k / w.cols), ':');
 if (w.plazaOk) for (let dr = 0; dr < 3; dr++) for (let dc = 0; dc < 3; dc++) set(w.plaza[0] + dc, w.plaza[1] + dr, 'P');
 for (const t of w.trees) set(t.c, t.r, 'T');
 for (const b of w.bushes) set(b.c, b.r, 'b');
-for (const o of w.offices) set(o.doorTile[0], o.doorTile[1], 'D');
+for (const o of w.offices) set(o.doorTile[0], o.doorTile[1], '^');
 console.log(`seed=${seed} season=${w.season} map=${w.cols}x${w.rows} tiles, buildEnd=${w.build.buildEnd.toFixed(1)}s`);
 console.log(grid.map((l) => l.join('')).join('\n'));
 for (const [i, o] of w.offices.entries()) {
