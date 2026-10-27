@@ -130,6 +130,12 @@ export function installService(spec: ServiceSpec, ops: ServiceOps = {}): Service
   } else {
     run('systemctl', ['--user', 'daemon-reload']);
     run('systemctl', ['--user', 'enable', '--now', `${file.label}.service`]);
+    // Without linger, user services stop when the last login session ends (ssh, WSL terminal).
+    try {
+      run('loginctl', ['enable-linger']);
+    } catch {
+      process.stderr.write('warn: could not enable linger; the service stops on logout. Run: sudo loginctl enable-linger $USER\n');
+    }
   }
   return file;
 }

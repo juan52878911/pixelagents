@@ -32,7 +32,7 @@ describe('service files', () => {
     const f = installService({ ...common, home, name: 'agent', platform: 'linux' }, { run });
     expect(f.path.startsWith(home)).toBe(true);
     expect(existsSync(f.path)).toBe(true);
-    expect(calls).toEqual(['systemctl --user daemon-reload', 'systemctl --user enable --now pixelagents-agent.service']);
+    expect(calls).toEqual(['systemctl --user daemon-reload', 'systemctl --user enable --now pixelagents-agent.service', 'loginctl enable-linger']);
     expect(uninstallService({ home, name: 'agent', platform: 'linux' }, { run }).existed).toBe(true);
     expect(existsSync(f.path)).toBe(false);
     expect(uninstallService({ home, name: 'agent', platform: 'linux' }, { run }).existed).toBe(false);
