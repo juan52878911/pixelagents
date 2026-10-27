@@ -1,0 +1,31 @@
+# Example: run the pixelagents server in a container.
+#
+#   cp docker-compose.example.yml docker-compose.yml
+#   docker compose up -d --build
+#   open http://localhost:4242
+#
+# Everything the server keeps (config.json, state, uploaded sprites, event log) lives in the `pixelagents-data`
+# volume mounted at /data. On first start the server writes a default /data/config.json; edit it
+# (`docker compose exec pixelagents cat /data/config.json`) or use the settings screen in the web app.
+#
+# Other machines send their events here with:
+#   pixelagents agent --hub http://<this-host>:4242 --token <token>
+# which requires `"server": { "token": "<token>" }` in /data/config.json, because the container listens on
+# 0.0.0.0 (a non-loopback host refuses ingest and config writes without a token).
+services:
+  pixelagents:
+    build: .
+    image: pixelagents:local
+    restart: unless-stopped
+    ports:
+      # Bind to 127.0.0.1 to keep it private to this machine; drop the prefix to expose it on your network
+      # (behind a reverse proxy with TLS if it is reachable from outside).
+      - "127.0.0.1:4242:4242"
+    volumes:
+      - pixelagents-data:/data
+      # Optional: let the server read this machine's Claude Code events (hooks write ~/.pixelagents/events.jsonl)
+      # and point an input of type `file` at /events/events.jsonl in config.json.
+      # - ${HOME}/.pixelagents:/events:ro
+
+volumes:
+  pixelagents-data:

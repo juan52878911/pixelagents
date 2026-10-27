@@ -12,3 +12,26 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # npm pack + install in a temp prefix + `pixelagents demo` answering /healthz and /
+      - run: node scripts/smoke-pack.mjs 4390
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env: { CI: 'true' }
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
