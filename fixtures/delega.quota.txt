@@ -1,0 +1,5 @@
+[personal] 5 h: 27 % (reinicia Mon 21:00, en 0.1 h) · semanal: 7 % (reinicia Mon 05:00, en 2 h) · dato de hace 33 min
+ritmo por trabajador: 12.0 %/h en 5 h, 1.60 %/h semanal (estimado, sin historial)
+tope por 5 h ≤70 %: 35 · por semanal ≤90 %: 25 · por huecos de las máquinas: 3
+CUPO: 3 trabajadores a la vez · vivos 1 · puedes lanzar 2 más
+gasto de hoy: 6.49 $ de 150.00 $

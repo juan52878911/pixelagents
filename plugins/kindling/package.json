@@ -1,0 +1,7 @@
+{
+  "name": "@pixelagents/plugin-kindling",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@pixelagents/protocol": "*" }
+}

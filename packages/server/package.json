@@ -1,0 +1,15 @@
+{
+  "name": "@pixelagents/server",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pixelagents/protocol": "*",
+    "ajv": "^8.17.1"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.ts --config ../../pixelagents.config.json"
+  }
+}

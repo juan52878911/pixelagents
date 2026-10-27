@@ -1,0 +1,2399 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#0d0a12">
+<canvas id=m width=480 height=328 style="width:1440px;height:984px;image-rendering:pixelated"></canvas>
+<canvas id=s width=480 height=260 style="width:1440px;height:780px;image-rendering:pixelated"></canvas>
+<pre id=err style="color:red;font-size:30px"></pre>
+<script>window.onerror=(m,u,l,c,e)=>{document.getElementById('err').textContent+=m+' @'+l+'\n'};class DCLogic{}
+
+// ---------- pixel engine: everything below is drawn 1 logical pixel at a time ----------
+const W = 480, H = 328, SW = 480, SH = 260;
+const OL = '#1a1423';
+
+const FONT = {
+  A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',E:'111100110100111',
+  F:'111100110100100',G:'011100101101011',H:'101101111101101',I:'111010010010111',J:'001001001101010',
+  K:'101101110101101',L:'100100100100111',M:'101111111101101',N:'110101101101101',O:'010101101101010',
+  P:'110101110100100',Q:'010101101110011',R:'110101110101101',S:'011100010001110',T:'111010010010010',
+  U:'101101101101111',V:'101101101101010',W:'101101111111101',X:'101101010101101',Y:'101101010010010',
+  Z:'111001010100111','0':'111101101101111','1':'010110010010111','2':'110001010100111','3':'110001010001110',
+  '4':'101101111001001','5':'111100110001110','6':'011100111101111','7':'111001010010010','8':'111101111101111',
+  '9':'111101111001110','$':'011110010011110','%':'101001010100101','.':'000000000000010',':':'000010000010000',
+  '-':'000000111000000','@':'010101111100011','/':'001001010100100','!':'010010010000010','?':'110001010000010',
+  ' ':'000000000000000','·':'000000010000000','+':'000010111010000','_':'000000000000111'
+};
+function txtW(s, sc) { return (String(s).length * 4 - 1) * (sc || 1); }
+function txt(g, s, x, y, c, sc) {
+  sc = sc || 1; s = String(s).toUpperCase(); g.fillStyle = c;
+  for (let i = 0; i < s.length; i++) {
+    const p = FONT[s[i]]; if (!p) continue;
+    for (let k = 0; k < 15; k++) if (p[k] === '1') g.fillRect(x + (i * 4 + k % 3) * sc, y + Math.floor(k / 3) * sc, sc, sc);
+  }
+}
+function R(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); }
+function spr(g, rows, x, y, pal, flip) {
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r], w = row.length;
+    for (let c = 0; c < w; c++) {
+      const col = pal[row[c]]; if (!col) continue;
+      g.fillStyle = col; g.fillRect(x + (flip ? w - 1 - c : c), y + r, 1, 1);
+    }
+  }
+}
+function hash(n) { n = (n ^ 61) ^ (n >>> 16); n = n + (n << 3); n = n ^ (n >>> 4); n = Math.imul(n, 0x27d4eb2d); n = n ^ (n >>> 15); return n >>> 0; }
+
+// ---------- pop library (decor, emojis, gags) ----------
+// pop.js — guiños pixel-art a la cultura de los videojuegos + emojis + gags de agente.
+// Diseños originales que evocan tópicos del medio (bloque sorpresa, tubería, seta con lunares,
+// alien de recreativa, fantasma de laberinto, piezas de cuatro bloques...). Sin marcas ni copias.
+// Depende de los globales del motor: R, spr, txt, hash, OL. Prefijo `pop` para lo auxiliar.
+
+// ---------- paletas compartidas ----------
+const POP_C = {
+  gold:'#f5c542', goldL:'#fff1a8', goldD:'#b8860b',
+  red:'#e5533d', redL:'#ff9d8a', redD:'#a8322a',
+  orange:'#f0802a', yellow:'#ffd23f', cream:'#fff6c9',
+  green:'#4cc38a', greenL:'#8ee6b4', greenD:'#2e8a5e', lime:'#7ee787',
+  blue:'#4a90e2', sky:'#79c0ff', cyan:'#5ad1e6', cyanL:'#9be8f5', cyanD:'#3fb8d8',
+  purple:'#d2a8ff', magenta:'#d64fa0', pink:'#ffb3d9',
+  white:'#e9f2f7', grey:'#8f96a3', greyD:'#5b5470', slate:'#3b3346', dark:'#100e16',
+  wood:'#a8744c', woodL:'#c9a06a', woodD:'#6b4329', skin:'#f5e6c8'
+};
+
+// ============================================================
+// DECORACIÓN
+// place 'wall' (alto máx. 12, ancho máx. 16) · 'floor' (ancho máx. 18, alto máx. 20)
+// ============================================================
+const POP_DECO = {
+  // ---- pared ----
+  bloque: { name:'Bloque sorpresa', place:'wall', w:12, h:12, fps:1.5,
+    pal:{ O:OL, Y:'#f0a030', d:'#8a4a12', w:POP_C.goldL },
+    frames:[[
+      "OOOOOOOOOOOO",
+      "OdYYYYYYYYdO",
+      "OYYYOOOOYYYO",
+      "OYYOOYYOOYYO",
+      "OYYOOYYOOYYO",
+      "OYYYYYOOYYYO",
+      "OYYYYOOYYYYO",
+      "OYYYYOOYYYYO",
+      "OYYYYYYYYYYO",
+      "OYYYYOOYYYYO",
+      "OdYYYYYYYYdO",
+      "OOOOOOOOOOOO"
+    ],[
+      "OOOOOOOOOOOO",
+      "OdYYYYYYYYdO",
+      "OYYYwwwwYYYO",
+      "OYYwwYYwwYYO",
+      "OYYwwYYwwYYO",
+      "OYYYYYwwYYYO",
+      "OYYYYwwYYYYO",
+      "OYYYYwwYYYYO",
+      "OYYYYYYYYYYO",
+      "OYYYYwwYYYYO",
+      "OdYYYYYYYYdO",
+      "OOOOOOOOOOOO"
+    ]] },
+
+  corazones: { name:'Corazones de vida', place:'wall', w:15, h:5, fps:2,
+    pal:{ O:OL, R:POP_C.red, r:POP_C.redL, g:POP_C.greyD },
+    frames:[[
+      "OO.OOOO.OOOO.OO",
+      "OrRROOrRROOrRgO",
+      "ORRROORRROORRgO",
+      ".ORO..ORO..OgO.",
+      "..O....O....O.."
+    ],[
+      "OO.OOOO.OOOO.OO",
+      "OrRROOrRROOgggO",
+      "ORRROORRROOgggO",
+      ".ORO..ORO..OgO.",
+      "..O....O....O.."
+    ]] },
+
+  invader: { name:'Alien de recreativa', place:'wall', w:13, h:10, fps:2,
+    pal:{ O:OL, k:POP_C.dark, A:POP_C.lime },
+    frames:[[
+      "OOOOOOOOOOOOO",
+      "OkkAkkkkkAkkO",
+      "OkkkAkkkAkkkO",
+      "OkkAAAAAAAkkO",
+      "OkAAkAAAkAAkO",
+      "OAAAAAAAAAAAO",
+      "OAkAAAAAAAkAO",
+      "OAkAkkkkkAkAO",
+      "OkkkAAkAAkkkO",
+      "OOOOOOOOOOOOO"
+    ],[
+      "OOOOOOOOOOOOO",
+      "OkkAkkkkkAkkO",
+      "OAkkAkkkAkkAO",
+      "OAkAAAAAAAkAO",
+      "OAAAkAAAkAAAO",
+      "OAAAAAAAAAAAO",
+      "OkAAAAAAAAAkO",
+      "OkkAkkkkkAkkO",
+      "OkAkkkkkkkAkO",
+      "OOOOOOOOOOOOO"
+    ]] },
+
+  fantasma: { name:'Fantasma de laberinto', place:'wall', w:16, h:8, fps:2,
+    pal:{ O:OL, C:POP_C.cyan, w:POP_C.white, b:'#2f5fb3', p:'#ffe9b0' },
+    frames:[[
+      "..OOOO..........",
+      ".OCCCCO.........",
+      "OCwwCwwO........",
+      "OCwbCwbO..pp..pp",
+      "OCCCCCCO..pp..pp",
+      "OCCCCCCO........",
+      "OCCCCCCO........",
+      "OC.CC.CO........"
+    ],[
+      "..OOOO..........",
+      ".OCCCCO.........",
+      "OCwwCwwO........",
+      "OCwbCwbO......pp",
+      "OCCCCCCO......pp",
+      "OCCCCCCO........",
+      "OCCCCCCO........",
+      "O.CCCC.O........"
+    ],[
+      "..OOOO..........",
+      ".OCCCCO.........",
+      "OCwwCwwO........",
+      "OCwbCwbO........",
+      "OCCCCCCO........",
+      "OCCCCCCO........",
+      "OCCCCCCO........",
+      "OC.CC.CO........"
+    ]] },
+
+  cartel_1up: { name:'Cartel 1UP', place:'wall', w:15, h:9, fps:1.5,
+    pal:{ O:OL, B:'#163a22', G:POP_C.lime, W:'#d8ffe0' },
+    frames:[[
+      "OOOOOOOOOOOOOOO",
+      "OBBBBBBBBBBBBBO",
+      "OB.G..G.G.GG.BO",
+      "OBGG..G.G.G.GBO",
+      "OB.G..G.G.GG.BO",
+      "OB.G..G.G.G..BO",
+      "OBGGG.GGG.G..BO",
+      "OBBBBBBBBBBBBBO",
+      "OOOOOOOOOOOOOOO"
+    ],[
+      "OOOOOOOOOOOOOOO",
+      "OBBBBBBBBBBBBBO",
+      "OB.W..W.W.WW.BO",
+      "OBWW..W.W.W.WBO",
+      "OB.W..W.W.WW.BO",
+      "OB.W..W.W.W..BO",
+      "OBWWW.WWW.W..BO",
+      "OBBBBBBBBBBBBBO",
+      "OOOOOOOOOOOOOOO"
+    ]] },
+
+  escudo: { name:'Escudo con gema', place:'wall', w:10, h:12, fps:0,
+    pal:{ O:OL, y:'#d9a441', B:'#2f5fb3', b:'#234a8c', r:POP_C.red },
+    frames:[[
+      "OOOOOOOOOO",
+      "OyyyyyyyyO",
+      "OyBBBBBbyO",
+      "OyBBrrBbyO",
+      "OyBrrrrbyO",
+      "OyBBrrBbyO",
+      "OyBBBBBbyO",
+      "OyBBBBBbyO",
+      ".OyBBBbyO.",
+      "..OyBbyO..",
+      "...OyyO...",
+      "....OO...."
+    ]] },
+
+  estrella: { name:'Estrella de invencibilidad', place:'wall', w:9, h:9, fps:4,
+    pal:{ O:OL, Y:POP_C.yellow, w:POP_C.cream, e:OL },
+    frames:[[
+      "....O....",
+      "...OYO...",
+      "...OYO...",
+      "OOOOYOOOO",
+      "OYYeYeYYO",
+      ".OYYYYYO.",
+      "..OYYYO..",
+      ".OYYOYYO.",
+      ".OO...OO."
+    ],[
+      "....O....",
+      "...OwO...",
+      "...OwO...",
+      "OOOOwOOOO",
+      "OwwewewwO",
+      ".OwwwwwO.",
+      "..OwwwO..",
+      ".OwwOwwO.",
+      ".OO...OO."
+    ]] },
+
+  mando: { name:'Mando de consola', place:'wall', w:16, h:8, fps:0,
+    pal:{ O:OL, g:POP_C.grey, d:POP_C.greyD, b:POP_C.blue, r:POP_C.red },
+    frames:[[
+      ".OOOOOOOOOOOOOO.",
+      "OggggggggggggggO",
+      "OggOgggggbbgrrgO",
+      "OgOOOggggbbgrrgO",
+      "OggOgggddggggggO",
+      "OggggggggggggggO",
+      "OddggggggggggddO",
+      ".OOOOOOOOOOOOOO."
+    ]] },
+
+  // ---- suelo ----
+  tuberia: { name:'Tubería verde', place:'floor', w:14, h:16, fps:0,
+    pal:{ O:OL, l:POP_C.greenL, G:POP_C.green, d:POP_C.greenD },
+    frames:[[
+      "OOOOOOOOOOOOOO",
+      "OllGGGGGGGGddO",
+      "OllGGGGGGGGddO",
+      "OllGGGGGGGGddO",
+      "OOOOOOOOOOOOOO",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OllGGGGGGddO.",
+      ".OOOOOOOOOOOO."
+    ]] },
+
+  seta: { name:'Seta con lunares', place:'floor', w:12, h:12, fps:2,
+    pal:{ O:OL, r:POP_C.red, w:POP_C.white, c:POP_C.skin, e:OL },
+    frames:[[
+      "...OOOOOO...",
+      "..OrrrrrrrO.",
+      ".OrrwwrwwrrO",
+      "OrrrwwrwwrrO",
+      "OrrrrwwrrrrO",
+      "OrrrrwwrrrrO",
+      "OOOOOOOOOOOO",
+      ".OccccccccO.",
+      ".OceccccecO.",
+      ".OccccccccO.",
+      "..OOOOOOOO..",
+      "............"
+    ],[
+      "............",
+      "...OOOOOO...",
+      "..OrrrrrrrO.",
+      ".OrrwwrwwrrO",
+      "OrrrwwrwwrrO",
+      "OrrrrwwrrrrO",
+      "OrrrrwwrrrrO",
+      "OOOOOOOOOOOO",
+      ".OccccccccO.",
+      ".OceccccecO.",
+      ".OccccccccO.",
+      "..OOOOOOOO.."
+    ]] },
+
+  cofre: { name:'Cofre del tesoro', place:'floor', w:14, h:13, fps:1.5,
+    pal:{ O:OL, l:POP_C.woodL, b:POP_C.wood, d:POP_C.woodD, m:POP_C.grey, y:POP_C.gold, Y:POP_C.cream, s:'#ffffff' },
+    frames:[[
+      "..............",
+      "..............",
+      "..............",
+      ".OOOOOOOOOOOO.",
+      "OllllllllllllO",
+      "ObbbbbbbbbbbbO",
+      "OmmmmmmmmmmmmO",
+      "OdddddyydddddO",
+      "OdddddyydddddO",
+      "OddddddddddddO",
+      "OddddddddddddO",
+      ".OOOOOOOOOOOO.",
+      ".............."
+    ],[
+      "..............",
+      "..............",
+      "..............",
+      ".OOOOOOOOOOOO.",
+      "OllllllllllllO",
+      "ObbbbbbbbbbbbO",
+      "OmmmmmmmmmmmmO",
+      "OdddddyydddddO",
+      "OdddddyydddddO",
+      "OddddddddddddO",
+      "OddddddddddddO",
+      ".OOOOOOOOOOOO.",
+      ".............."
+    ],[
+      ".OOOOOOOOOOOO.",
+      "OllllllllllllO",
+      "ObbbbbbbbbbbbO",
+      ".OOOOOOOOOOOO.",
+      "OyyYyyyyYyyyyO",
+      "OyyyyyyyyyyyyO",
+      "OmmmmmmmmmmmmO",
+      "OdddddyydddddO",
+      "OdddddyydddddO",
+      "OddddddddddddO",
+      "OddddddddddddO",
+      ".OOOOOOOOOOOO.",
+      ".............."
+    ],[
+      ".OOOOOOOOOOOO.",
+      "OllllllllllllO",
+      "ObbbbbbbbbbbbO",
+      ".OOOOOOOOOOOO.",
+      "OYysyyyYyysyyO",
+      "OyyyyyYyyyyyyO",
+      "OmmmmmmmmmmmmO",
+      "OdddddyydddddO",
+      "OdddddyydddddO",
+      "OddddddddddddO",
+      "OddddddddddddO",
+      ".OOOOOOOOOOOO.",
+      ".............."
+    ]] },
+
+  cristal: { name:'Cristal de guardado', place:'floor', w:9, h:13, fps:3,
+    pal:{ O:OL, c:POP_C.cyanL, C:POP_C.cyanD, w:'#ffffff', m:POP_C.greyD },
+    frames:[[
+      "....O....",
+      "...OcO...",
+      "..OcCcO..",
+      ".OcCCCcO.",
+      ".OcCwCcO.",
+      ".OcCCCcO.",
+      "..OcCcO..",
+      "...OcO...",
+      "....O....",
+      ".........",
+      "..OOOOO..",
+      ".OmmmmmO.",
+      ".OOOOOOO."
+    ],[
+      ".........",
+      "....O....",
+      "...OcO...",
+      "..OcCcO..",
+      ".OcCCCcO.",
+      ".OcwCCcO.",
+      ".OcCCCcO.",
+      "..OcCcO..",
+      "...OcO...",
+      "....O....",
+      "..OOOOO..",
+      ".OmmmmmO.",
+      ".OOOOOOO."
+    ],[
+      "....O....",
+      "...OcO...",
+      ".wOcCcO..",
+      ".OcCCCcO.",
+      ".OcCCwcO.",
+      ".OcCCCcO.",
+      "..OcCcOw.",
+      "...OcO...",
+      "....O....",
+      ".........",
+      "..OOOOO..",
+      ".OmmmmmO.",
+      ".OOOOOOO."
+    ]] },
+
+  arcade: { name:'Máquina recreativa', place:'floor', w:14, h:20, fps:2,
+    pal:{ O:OL, M:POP_C.magenta, m:'#8a2f66', k:POP_C.slate, K:'#4d4459', S:POP_C.dark, a:POP_C.lime, p:POP_C.yellow, s:'#ffffff', j:POP_C.grey, r:POP_C.red },
+    frames:[[
+      ".OOOOOOOOOOOO.",
+      "OmMMMMMMMMMMmO",
+      "OmMMMMMMMMMMmO",
+      "OOOOOOOOOOOOOO",
+      "OkkOOOOOOOOkkO",
+      "OkkOSSSSSSOkkO",
+      "OkkOSaSSSSOkkO",
+      "OkkOSSSSSSOkkO",
+      "OkkOSSSpSSOkkO",
+      "OkkOOOOOOOOkkO",
+      "OkkkkkkkkkkkkO",
+      "OkkOOOOOOOOkkO",
+      "OkkOjOOrOrOkkO",
+      "OkkOOOOOOOOkkO",
+      "OkkkkkkkkkkkkO",
+      "OkkKKKKKKKKkkO",
+      "OkkKKKKKKKKkkO",
+      "OkkKKKKKKKKkkO",
+      "OkkKKKKKKKKkkO",
+      ".OOOOOOOOOOOO."
+    ],[
+      ".OOOOOOOOOOOO.",
+      "OmMMMMMMMMMMmO",
+      "OmMMMMMMMMMMmO",
+      "OOOOOOOOOOOOOO",
+      "OkkOOOOOOOOkkO",
+      "OkkOSSSSSSOkkO",
+      "OkkOSSSSaSOkkO",
+      "OkkOSSSsSSOkkO",
+      "OkkOSSSpSSOkkO",
+      "OkkOOOOOOOOkkO",
+      "OkkkkkkkkkkkkO",
+      "OkkOOOOOOOOkkO",
+      "OkkOjOOrOrOkkO",
+      "OkkOOOOOOOOkkO",
+      "OkkkkkkkkkkkkO",
+      "OkkKKKKKKKKkkO",
+      "OkkKKKKKKKKkkO",
+      "OkkKKKKKKKKkkO",
+      "OkkKKKKKKKKkkO",
+      ".OOOOOOOOOOOO."
+    ]] },
+
+  bloque_hierba: { name:'Bloque de tierra con hierba', place:'floor', w:12, h:12, fps:0,
+    pal:{ O:OL, G:'#5aa83c', g:'#7fcf4a', d:'#8a5a2b', D:POP_C.woodD },
+    frames:[[
+      "OOOOOOOOOOOO",
+      "OgGGgGGgGGgO",
+      "OGGGGGGGGGGO",
+      "OGGdGGGdGGGO",
+      "OdGdddGddddO",
+      "OddddddddddO",
+      "OdDddddDdddO",
+      "OddddDddddDO",
+      "OddddddddddO",
+      "ODddddDddddO",
+      "OddddddddddO",
+      "OOOOOOOOOOOO"
+    ]] },
+
+  espada_piedra: { name:'Espada clavada en la piedra', place:'floor', w:12, h:16, fps:1,
+    pal:{ O:OL, y:'#d9a441', b:POP_C.woodD, w:'#d5d9e0', s:POP_C.grey, K:'#8a8699', k:'#6e6a7a', D:'#4a4656', g:'#ffffff' },
+    frames:[[
+      ".....OO.....",
+      "....OyyO....",
+      "....ObbO....",
+      "....ObbO....",
+      "..OOOOOOOO..",
+      "..OyyyyyyO..",
+      "..OOOwsOOO..",
+      "....OwsO....",
+      "....OwsO....",
+      "....OwsO....",
+      ".OOOOwsOOOO.",
+      "OKKKKwsKKKkO",
+      "OKKkkkkkkkkO",
+      "OkkkkkkkkkkO",
+      "OkkkkDkkkkkO",
+      "OOOOOOOOOOOO"
+    ],[
+      ".....OO.....",
+      "....OyyO....",
+      "....ObbO....",
+      "....ObbO....",
+      "..OOOOOOOO..",
+      "..OyyyyyyO..",
+      "..OOOgsOOO..",
+      "...gOgsO....",
+      "....OwsOg...",
+      "....OwsO....",
+      ".OOOOwsOOOO.",
+      "OKKKKwsKKKkO",
+      "OKKkkkkkkkkO",
+      "OkkkkkkkkkkO",
+      "OkkkkDkkkkkO",
+      "OOOOOOOOOOOO"
+    ]] },
+
+  pocion: { name:'Poción', place:'floor', w:8, h:12, fps:2,
+    pal:{ O:OL, b:POP_C.wood, w:'#dff4ff', P:'#d84d8e', p:POP_C.pink },
+    frames:[[
+      "..OOOO..",
+      "..ObbO..",
+      "..ObbO..",
+      "..OwwO..",
+      ".OwwwwO.",
+      "OwwwwwwO",
+      "OwPPPPwO",
+      "OPPpPPPO",
+      "OPPPPPPO",
+      "OPpPPPPO",
+      ".OPPPPO.",
+      "..OOOO.."
+    ],[
+      "..OOOO..",
+      "..ObbO..",
+      "..ObbO..",
+      "..OwwO..",
+      ".OwwwwO.",
+      "OwwwwwwO",
+      "OwPpPPwO",
+      "OPPPPPPO",
+      "OPPPPpPO",
+      "OPPPPPPO",
+      ".OPPPPO.",
+      "..OOOO.."
+    ]] },
+
+  anillo: { name:'Anillo dorado', place:'floor', w:9, h:9, fps:6,
+    pal:{ O:OL, y:POP_C.gold, Y:POP_C.goldL },
+    frames:[[
+      "..OOOOO..",
+      ".OyYYYyO.",
+      "OyyO.OyyO",
+      "OyO...OyO",
+      "OyO...OyO",
+      "OyO...OyO",
+      "OyyO.OyyO",
+      ".OyyyyyO.",
+      "..OOOOO.."
+    ],[
+      "...OOO...",
+      "..OyYyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyyyO..",
+      "...OOO..."
+    ],[
+      "...OOO...",
+      "...OyO...",
+      "...OyO...",
+      "...OYO...",
+      "...OYO...",
+      "...OyO...",
+      "...OyO...",
+      "...OyO...",
+      "...OOO..."
+    ],[
+      "...OOO...",
+      "..OyYyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyOyO..",
+      "..OyyyO..",
+      "...OOO..."
+    ]] },
+
+  cartucho: { name:'Cartucho', place:'floor', w:12, h:12, fps:0,
+    pal:{ O:OL, g:POP_C.grey, d:POP_C.greyD, B:POP_C.sky, G:'#5aa83c', y:POP_C.yellow },
+    frames:[[
+      ".OOOOOOOOOO.",
+      "OggggggggggO",
+      "OgOOOOOOOOgO",
+      "OgOBBBBBBOgO",
+      "OgOBBBByBOgO",
+      "OgOBBBBBBOgO",
+      "OgOGGGGGGOgO",
+      "OgOOOOOOOOgO",
+      "OggggggggggO",
+      "OgdgdgdgdgdO",
+      "OggggggggggO",
+      ".OOOOOOOOOO."
+    ]] }
+};
+
+// ============================================================
+// EMOJIS 9×9 (contorno OL)
+// ============================================================
+const POP_EMOJI = {
+  corazon: { name:'Corazón', fps:0, pal:{ O:OL, R:POP_C.red, r:POP_C.redL, d:POP_C.redD },
+    frames:[[
+      ".........",
+      ".OO...OO.",
+      "OrRO.ORRO",
+      "ORRRORRRO",
+      "ORRRRRRRO",
+      ".ORRRRdO.",
+      "..ORRdO..",
+      "...OdO...",
+      "....O...."
+    ]] },
+  estrella: { name:'Estrella', fps:0, pal:{ O:OL, Y:POP_C.yellow, y:POP_C.cream },
+    frames:[[
+      "....O....",
+      "...OyO...",
+      "OOOOYOOOO",
+      "OyYYYYYYO",
+      ".OYYYYYO.",
+      "..OYYYO..",
+      ".OYYOYYO.",
+      ".OYO.OYO.",
+      ".OO...OO."
+    ]] },
+  fuego: { name:'Fuego', fps:4, pal:{ O:OL, r:POP_C.orange, Y:POP_C.yellow, y:POP_C.cream, R:'#c4302b' },
+    frames:[[
+      "....O....",
+      "...OrO...",
+      "..OrrrO..",
+      "..OrYrO..",
+      ".OrYyYrO.",
+      ".OrYyYrO.",
+      "OrrYyYrrO",
+      ".ORYYYRO.",
+      "..OOOOO.."
+    ],[
+      "...O.....",
+      "..OrO.O..",
+      "..OrrOrO.",
+      ".OrYrrrO.",
+      ".OrYyYrO.",
+      "OrrYyYrrO",
+      "OrRYyYRrO",
+      ".ORYYYRO.",
+      "..OOOOO.."
+    ]] },
+  pulgar: { name:'Pulgar arriba', fps:0, pal:{ O:OL, Y:POP_C.gold, y:POP_C.goldL },
+    frames:[[
+      "...OO....",
+      "..OyYO...",
+      "..OYYO...",
+      "..OYYOOO.",
+      "OOOYYYYYO",
+      "OyYYYYYYO",
+      "OyYYYYYYO",
+      ".OYYYYYYO",
+      "..OOOOOO."
+    ]] },
+  cafe: { name:'Café', fps:2, pal:{ O:OL, s:'#c9ccd6', c:POP_C.woodD, w:POP_C.white },
+    frames:[[
+      "..s.s.s..",
+      ".s.s.s...",
+      "..s.s.s..",
+      "OOOOOO...",
+      "OccccOOO.",
+      "OwwwwO.O.",
+      "OwwwwOOO.",
+      ".OwwwO...",
+      ".OOOOO..."
+    ],[
+      ".s.s.s...",
+      "..s.s.s..",
+      ".s.s.s...",
+      "OOOOOO...",
+      "OccccOOO.",
+      "OwwwwO.O.",
+      "OwwwwOOO.",
+      ".OwwwO...",
+      ".OOOOO..."
+    ]] },
+  bicho: { name:'Bicho (bug)', fps:0, pal:{ O:OL, r:POP_C.red, k:POP_C.slate },
+    frames:[[
+      ".O.....O.",
+      "..O.O.O..",
+      "..OOOOO..",
+      ".OkkOkkO.",
+      "OOrrOrrOO",
+      ".OrkOkrO.",
+      "OOrrOrrOO",
+      ".OrrOrrO.",
+      "..OOOOO.."
+    ]] },
+  fiesta: { name:'Fiesta', fps:3, pal:{ O:OL, y:POP_C.yellow, r:POP_C.red, p:POP_C.pink, b:POP_C.sky, g:POP_C.lime },
+    frames:[[
+      ".p..y..b.",
+      "...p...g.",
+      "OO...y...",
+      "OyyO.....",
+      "OyryO..p.",
+      ".OyryyO..",
+      "..OyryyO.",
+      "...OyryyO",
+      "....OOOOO"
+    ],[
+      "..b.p..y.",
+      ".g...b...",
+      "OO.p...g.",
+      "OyyO..y..",
+      "OyryO....",
+      ".OyryyO..",
+      "..OyryyO.",
+      "...OyryyO",
+      "....OOOOO"
+    ]] },
+  cohete: { name:'Cohete', fps:4, pal:{ O:OL, w:'#d5d9e0', b:POP_C.sky, r:POP_C.red, F:POP_C.yellow, f:POP_C.orange },
+    frames:[[
+      "....O....",
+      "...OwO...",
+      "...OwO...",
+      "..OwbwO..",
+      "..OwwwO..",
+      ".OrOwOrO.",
+      ".OrOOOrO.",
+      ".OO.F.OO.",
+      "...fFf..."
+    ],[
+      "....O....",
+      "...OwO...",
+      "...OwO...",
+      "..OwbwO..",
+      "..OwwwO..",
+      ".OrOwOrO.",
+      ".OrOOOrO.",
+      ".OO.f.OO.",
+      "....F...."
+    ]] },
+  bombilla: { name:'Bombilla', fps:0, pal:{ O:OL, y:POP_C.yellow, Y:POP_C.cream, g:POP_C.grey },
+    frames:[[
+      "..OOOOO..",
+      ".OyyYyyO.",
+      "OyyYYyyyO",
+      "OyyYyyyyO",
+      "OyyyyyyyO",
+      ".OyyyyyO.",
+      "..OgggO..",
+      "..OgggO..",
+      "...OOO..."
+    ]] },
+  calavera: { name:'Calavera', fps:0, pal:{ O:OL, w:POP_C.white, g:'#c9ccd6' },
+    frames:[[
+      "..OOOOO..",
+      ".OwwwwgO.",
+      "OwwwwwwgO",
+      "OwOOwOOgO",
+      "OwOOwOOgO",
+      "OwwwwwwgO",
+      ".OwOwOgO.",
+      "..OwwgO..",
+      "..OOOOO.."
+    ]] },
+  cien: { name:'100', fps:0, pal:{ O:OL, r:POP_C.red },
+    frames:[[
+      "r.rrr.rrr",
+      "r.r.r.r.r",
+      "r.r.r.r.r",
+      "r.r.r.r.r",
+      "r.rrr.rrr",
+      "O.OOO.OOO",
+      "rrrrrrrrr",
+      "OOOOOOOOO",
+      "rrrrrrrrr"
+    ]] },
+  ojos: { name:'Ojos', fps:1, pal:{ O:OL, w:POP_C.white, k:'#2a2733' },
+    frames:[[
+      ".........",
+      ".OOO.OOO.",
+      "OwwwOwwwO",
+      "OwwkOwwkO",
+      "OwkkOwkkO",
+      "OwwwOwwwO",
+      ".OOO.OOO.",
+      ".........",
+      "........."
+    ],[
+      ".........",
+      ".OOO.OOO.",
+      "OwwwOwwwO",
+      "OkwwOkwwO",
+      "OkkwOkkwO",
+      "OwwwOwwwO",
+      ".OOO.OOO.",
+      ".........",
+      "........."
+    ]] },
+  risa: { name:'Risa', fps:0, pal:{ O:OL, y:POP_C.gold, w:POP_C.white, r:POP_C.red },
+    frames:[[
+      "..OOOOO..",
+      ".OyyyyyO.",
+      "OyOyyyOyO",
+      "OyyyyyyyO",
+      "OyOOOOOyO",
+      "OyOwwwOyO",
+      "OyOrrrOyO",
+      ".OyOOOyO.",
+      "..OOOOO.."
+    ]] },
+  ok: { name:'Visto bueno', fps:0, pal:{ O:OL, g:POP_C.green, w:'#ffffff' },
+    frames:[[
+      ".........",
+      "..OOOOO..",
+      ".OgggggO.",
+      "OgggggwgO",
+      "OggggwggO",
+      "OgwgwgggO",
+      "OgggwgggO",
+      ".OgggggO.",
+      "..OOOOO.."
+    ]] },
+  moneda: { name:'Moneda', fps:0, pal:{ O:OL, Y:POP_C.gold, y:POP_C.goldL, d:POP_C.goldD },
+    frames:[[
+      "..OOOOO..",
+      ".OyYYYdO.",
+      "OyYyYYYdO",
+      "OYYyYYYdO",
+      "OYYyYYYdO",
+      "OYYYYYYdO",
+      "OYYYYYddO",
+      ".OYYYddO.",
+      "..OOOOO.."
+    ]] }
+};
+
+// ============================================================
+// GAGS (agente sentado; x,y esquina sup. izq. del sprite 10 px; mesa en y+10)
+// draw dibuja dentro de x-10..x+20, y-26..y+12, solo coordenadas enteras.
+// ============================================================
+const POP_PAL_BLOCK = { O:OL, Y:'#f0a030', d:'#8a4a12', B:POP_C.wood, b:POP_C.woodD };
+const POP_GAG_BLOCK = [
+  "OOOOOOOOOO",
+  "OdYYYYYYdO",
+  "OYYOOOOYYO",
+  "OYOOYYOOYO",
+  "OYYYYOOYYO",
+  "OYYYOOYYYO",
+  "OYYYYYYYYO",
+  "OYYYOOYYYO",
+  "OdYYYYYYdO",
+  "OOOOOOOOOO"
+];
+const POP_GAG_BLOCK_USED = [
+  "OOOOOOOOOO",
+  "ObBBBBBBbO",
+  "OBbBBBBbBO",
+  "OBBBBBBBBO",
+  "OBBBBBBBBO",
+  "OBBBBBBBBO",
+  "OBBBBBBBBO",
+  "OBbBBBBbBO",
+  "ObBBBBBBbO",
+  "OOOOOOOOOO"
+];
+const POP_PAL_COIN = { O:OL, y:POP_C.goldD, Y:POP_C.gold, w:POP_C.goldL };
+const POP_COIN = [".OOO.", "OyYyO", "OYwYO", "OYYyO", ".OOO."];
+const POP_PAL_SWORD = { O:OL, w:'#d5d9e0', s:POP_C.grey, y:'#d9a441', b:POP_C.woodD };
+const POP_SWORD = [
+  "..OO..",
+  ".OwsO.",
+  ".OwsO.",
+  ".OwsO.",
+  ".OwsO.",
+  ".OwsO.",
+  ".OwsO.",
+  "OOOOOO",
+  "OyyyyO",
+  "OOOOOO",
+  ".ObbO.",
+  ".ObbO.",
+  ".OyyO.",
+  "..OO.."
+];
+const POP_PAL_PIPE = { O:OL, l:POP_C.greenL, G:POP_C.green, d:POP_C.greenD };
+const POP_PIPE_CAP = [
+  "OOOOOOOOOOOOOO",
+  "OllGGGGGGGGddO",
+  "OllGGGGGGGGddO",
+  "OOOOOOOOOOOOOO"
+];
+const POP_PAL_SHROOM = { O:OL, r:POP_C.red, w:POP_C.white, c:POP_C.skin, e:OL };
+const POP_SHROOM = [
+  "..OOOO..",
+  ".OrwwrO.",
+  "OwrrrrwO",
+  "OrrrrrrO",
+  "OOOOOOOO",
+  ".OccccO.",
+  ".OecceO.",
+  "..OOOO.."
+];
+const POP_PAL_GHOST = { O:OL, C:POP_C.cyan, w:POP_C.white, b:'#2f5fb3' };
+const POP_GHOST = [[
+  "..OOOO..",
+  ".OCCCCO.",
+  "OCwwCwwO",
+  "OCwbCwbO",
+  "OCCCCCCO",
+  "OCCCCCCO",
+  "OCCCCCCO",
+  "OC.CC.CO"
+],[
+  "..OOOO..",
+  ".OCCCCO.",
+  "OCwwCwwO",
+  "OCwbCwbO",
+  "OCCCCCCO",
+  "OCCCCCCO",
+  "OCCCCCCO",
+  "O.CCCC.O"
+]];
+const POP_PAL_ALIEN = { A:POP_C.lime };
+const POP_ALIEN = [[
+  "..A.....A..",
+  "...A...A...",
+  "..AAAAAAA..",
+  ".AA.AAA.AA.",
+  "AAAAAAAAAAA",
+  "A.AAAAAAA.A",
+  "A.A.....A.A",
+  "...AA.AA..."
+],[
+  "..A.....A..",
+  "A..A...A..A",
+  "A.AAAAAAA.A",
+  "AAA.AAA.AAA",
+  "AAAAAAAAAAA",
+  ".AAAAAAAAA.",
+  "..A.....A..",
+  ".A.......A."
+]];
+
+// destello en cruz (3×3) centrado en (cx,cy)
+function popSparkle(g, cx, cy, c, big) {
+  R(g, cx, cy, 1, 1, c);
+  R(g, cx - 1, cy, 1, 1, c); R(g, cx + 1, cy, 1, 1, c);
+  R(g, cx, cy - 1, 1, 1, c); R(g, cx, cy + 1, 1, 1, c);
+  if (big) { R(g, cx - 2, cy, 1, 1, c); R(g, cx + 2, cy, 1, 1, c); R(g, cx, cy - 2, 1, 1, c); R(g, cx, cy + 2, 1, 1, c); }
+}
+// recorta un valor al intervalo [a,b]
+function popClamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+// celda 2×2 de pieza de cuatro bloques con brillo en la esquina
+function popCell(g, x, y, c, light) { R(g, x, y, 2, 2, c); R(g, x, y, 1, 1, light); }
+// texto con sombra de 1 px para que se lea sobre cualquier fondo
+function popText(g, s, x, y, c) { txt(g, s, x + 1, y + 1, OL, 1); txt(g, s, x, y, c, 1); }
+
+const POP_GAGS = {
+  bloque: { name:'Golpe al bloque', dur:1.6,
+    pose(p) { return { lift: p < 0.5 ? Math.round(5 * Math.sin((p / 0.5) * Math.PI)) : 0 }; },
+    draw(g, x, y, p, t) {
+      const hit = p >= 0.3;
+      const bump = (p >= 0.3 && p < 0.45) ? 2 : 0;
+      if (hit && p < 0.85) {
+        const q = (p - 0.3) / 0.55;
+        const cy = y - 18 - Math.round(8 * Math.sin(q * Math.PI));
+        spr(g, POP_COIN, x + 2 + Math.round(q * 3), cy, POP_PAL_COIN, false);
+      }
+      spr(g, hit ? POP_GAG_BLOCK_USED : POP_GAG_BLOCK, x, y - 16 - bump, POP_PAL_BLOCK, false);
+      if (p >= 0.85) {
+        const k = Math.floor(t * 10);
+        popSparkle(g, x + 5 + (k % 2), y - 23, k % 2 ? POP_C.goldL : '#ffffff', k % 2 === 0);
+      }
+      if (hit && p < 0.5) { R(g, x - 2, y - 7, 1, 1, '#ffffff'); R(g, x + 11, y - 7, 1, 1, '#ffffff'); }
+    } },
+
+  espada: { name:'Objeto conseguido', dur:2.0,
+    pose(p) { return { arms:'up' }; },
+    draw(g, x, y, p, t) {
+      const up = Math.round((1 - popClamp(p / 0.15, 0, 1)) * 6);
+      const cx = x + 5, cy = y - 9;
+      if (p > 0.15) {
+        const rot = Math.floor(t * 6) % 2;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2 + rot * (Math.PI / 8);
+          const len = 7 + Math.floor(hash(i + Math.floor(t * 4)) % 3);
+          for (let d = 6; d <= len; d++) {
+            const px = cx + Math.round(Math.cos(a) * d), py = cy + Math.round(Math.sin(a) * d);
+            if (py < y - 20 || py > y - 1 || px < x - 6 || px > x + 15) continue;
+            R(g, px, py, 1, 1, (d + i) % 2 ? POP_C.yellow : POP_C.cream);
+          }
+        }
+      }
+      spr(g, POP_SWORD, x + 2, y - 15 + up, POP_PAL_SWORD, false);
+      if (p > 0.4 && Math.floor(t * 5) % 2) R(g, x + 4, y - 11 + Math.floor(t * 3) % 4, 1, 1, '#ffffff');
+    } },
+
+  tuberia: { name:'Por la tubería', dur:2.4,
+    pose(p) {
+      const d = 12;
+      const lift = p < 0.35 ? -Math.round(d * p / 0.35) : p < 0.65 ? -d : -Math.round(d * (1 - p) / 0.35);
+      return { lift };
+    },
+    draw(g, x, y, p, t) {
+      spr(g, POP_PIPE_CAP, x - 2, y + 6, POP_PAL_PIPE, false);
+      // burbujas al entrar y al salir
+      if ((p > 0.2 && p < 0.45) || (p > 0.6 && p < 0.85)) {
+        for (let i = 0; i < 3; i++) {
+          const q = ((t * 1.5 + i / 3) % 1);
+          const bx = x + 1 + (hash(i + 7) % 8), by = y + 5 - Math.round(q * 6);
+          R(g, bx, by, 1, 1, i % 2 ? POP_C.greenL : '#ffffff');
+        }
+      }
+      if (p >= 0.4 && p < 0.6) popText(g, '...', x + 2, y - 3, POP_C.greenL);
+    } },
+
+  seta: { name:'Seta de poder', dur:2.0,
+    pose(p) {
+      if (p < 0.45 || p > 0.85) return { lift: 0 };
+      return { lift: Math.round(3 * Math.abs(Math.sin(((p - 0.45) / 0.4) * Math.PI * 2))) };
+    },
+    draw(g, x, y, p, t) {
+      if (p < 0.4) {
+        const sx = x + 12 - Math.round((p / 0.4) * 4);
+        spr(g, POP_SHROOM, sx, y + 1, POP_PAL_SHROOM, false);
+      } else if (p < 0.5) {
+        const k = Math.floor(t * 12);
+        R(g, x + 9 + (k % 2), y + 2, 1, 1, POP_C.red); R(g, x + 11, y + 4 + (k % 3), 1, 1, POP_C.white);
+        R(g, x + 8, y + 6, 1, 1, POP_C.red);
+      } else if (p < 0.85) {
+        const k = Math.floor(t * 8);
+        for (let i = 0; i < 3; i++) {
+          const h = hash(k * 3 + i);
+          const sx = x - 5 + (h % 20), sy = y - 12 + ((h >>> 5) % 14);
+          popSparkle(g, sx, sy, (h >>> 9) % 2 ? POP_C.yellow : POP_C.white, false);
+        }
+      }
+      if (p > 0.45 && p < 0.8) {
+        const ty = y - 12 - Math.round(((p - 0.45) / 0.35) * 8);
+        popText(g, 'YUM!', x - 2, ty, Math.floor(t * 6) % 2 ? POP_C.yellow : POP_C.cream);
+      }
+    } },
+
+  fantasma: { name:'Fantasma comilón', dur:2.2,
+    draw(g, x, y, p, t) {
+      const gx = x - 10 + Math.round(p * 22);
+      const gy = y - 13;
+      for (let i = 0; i < 6; i++) {
+        const dx = x - 6 + i * 4;
+        if (gx + 4 > dx) continue;
+        R(g, dx, y - 10, 2, 2, '#ffe9b0');
+      }
+      spr(g, POP_GHOST[Math.floor(t * 6) % 2], gx, gy, POP_PAL_GHOST, false);
+    } },
+
+  tetris: { name:'Línea completa', dur:2.4,
+    draw(g, x, y, p, t) {
+      const wx = x + 11, wy = y - 23; // interior 8×16 (4×8 celdas)
+      const border = POP_C.greyD;
+      R(g, x + 10, y - 23, 1, 16, border); R(g, x + 19, y - 23, 1, 16, border); R(g, x + 10, y - 7, 10, 1, border);
+      const cell = (c, r, col, light) => popCell(g, wx + c * 2, wy + r * 2, col, light);
+      const cleared = p >= 0.8;
+      const flash = p >= 0.6 && p < 0.8;
+      // pila existente
+      const base = [[0, 7], [1, 7], [2, 7]];
+      const upper = [[0, 6], [1, 6]];
+      const drop = cleared ? 1 : 0;
+      if (!cleared) for (const q of base) cell(q[0], q[1], flash && Math.floor(t * 10) % 2 ? '#ffffff' : POP_C.blue, flash ? '#ffffff' : POP_C.sky);
+      for (const q of upper) cell(q[0], q[1] + drop, POP_C.magenta, POP_C.pink);
+      // pieza I vertical cayendo por la columna 3
+      let row;
+      if (p < 0.6) row = Math.min(4, -1 + Math.floor((p / 0.6) * 6));
+      else row = 4;
+      for (let k = 0; k < 4; k++) {
+        const r = row + k;
+        if (cleared && r === 7) continue;
+        const rr = r + (cleared ? 1 : 0);
+        if (rr < -1 || rr > 7) continue;
+        const col = (flash && r === 7 && Math.floor(t * 10) % 2) ? '#ffffff' : POP_C.cyan;
+        cell(3, rr, col, POP_C.cyanL);
+      }
+      if (cleared) popText(g, '+100', x - 6, y - 20, Math.floor(t * 6) % 2 ? POP_C.yellow : POP_C.cream);
+    } },
+
+  invader: { name:'Alien abatido', dur:2.2,
+    pose(p) { return { lift: (p > 0.6 && p < 0.72) ? 2 : 0 }; },
+    draw(g, x, y, p, t) {
+      const step = Math.floor(t * 3) % 2;
+      if (p < 0.6) {
+        const ax = x + (step ? 1 : -1);
+        const ay = y - 26 + Math.round(8 * popClamp(p / 0.45, 0, 1));
+        spr(g, POP_ALIEN[step], ax, ay, POP_PAL_ALIEN, false);
+      }
+      if (p >= 0.45 && p < 0.6) {
+        const q = (p - 0.45) / 0.15;
+        const sy = y - 1 - Math.round(9 * q);
+        R(g, x + 5, sy, 1, 3, POP_C.yellow);
+      }
+      if (p >= 0.6 && p < 0.8) {
+        const q = (p - 0.6) / 0.2;
+        const rad = 1 + Math.round(q * 4);
+        const cx = x + 5, cy = y - 14;
+        const c = q < 0.5 ? POP_C.cream : POP_C.orange;
+        R(g, cx - rad, cy, 1, 1, c); R(g, cx + rad, cy, 1, 1, c); R(g, cx, cy - rad, 1, 1, c); R(g, cx, cy + rad, 1, 1, c);
+        const d = Math.max(1, rad - 1);
+        R(g, cx - d, cy - d, 1, 1, c); R(g, cx + d, cy - d, 1, 1, c); R(g, cx - d, cy + d, 1, 1, c); R(g, cx + d, cy + d, 1, 1, c);
+        if (q < 0.4) R(g, cx - 1, cy - 1, 3, 3, POP_C.yellow);
+      }
+      if (p >= 0.8) popText(g, '+50', x, y - 18, Math.floor(t * 6) % 2 ? POP_C.lime : '#ffffff');
+    } },
+
+  lvup: { name:'Subida de nivel', dur:2.0,
+    pose(p) { return { lift: Math.round(4 * Math.abs(Math.sin(p * Math.PI * 2))) }; },
+    draw(g, x, y, p, t) {
+      const ty = y - 12 - Math.round(10 * popClamp(p / 0.6, 0, 1));
+      const cols = [POP_C.yellow, '#ffffff', POP_C.lime];
+      popText(g, 'LV UP', x - 4, ty, cols[Math.floor(t * 8) % 3]);
+      if (p < 0.9) {
+        const k = Math.floor(t * 4);
+        for (let i = 0; i < 5; i++) {
+          const h = hash(i * 17 + k);
+          const sx = x - 7 + (h % 24), sy = y - 24 + ((h >>> 5) % 22);
+          popSparkle(g, sx, sy, (h >>> 10) % 2 ? POP_C.yellow : POP_C.cream, (h >>> 12) % 3 === 0);
+        }
+      }
+    } }
+};
+const POPD = typeof POP_DECO !== 'undefined' ? POP_DECO : {}, POPE = typeof POP_EMOJI !== 'undefined' ? POP_EMOJI : {}, POPG = typeof POP_GAGS !== 'undefined' ? POP_GAGS : {};
+
+// ---------- characters ----------
+const SKIN = [['#f2c7a5','#d9a37f'],['#d9a07a','#b97f58'],['#a86b45','#86512f'],['#6e432a','#55321d']];
+const HAIR = ['#2b1d16','#5a3a22','#c9a227','#b5482a','#d8d4cc','#3a2e5c'];
+const ACC = {
+  personal: { name:'PERSONAL', tag:'AURICULARES', B:'#3b7dd8', b:'#2756a3', P:'#34304a', K:'#15121c', a:'#6fa3ff', A:'#dfe7f7' },
+  work:  { name:'WORK',  tag:'CORBATA',     B:'#ec8a3c', b:'#b8601f', P:'#2d3340', K:'#15121c', T:'#7a1e2c', W:'#f4efe6' },
+  plus:     { name:'PLUS',     tag:'GORRA',       B:'#9b5de5', b:'#6a3bb0', P:'#34304a', K:'#15121c', C:'#3fc79a', c:'#25916c' },
+  builder:  { name:'OBRA',     tag:'CASCO',       B:'#f28c28', b:'#c86a12', P:'#3b4a6b', K:'#15121c', C:'#ffd23f', c:'#d4a417', W:'#e8f0f4' }
+};
+function palFor(acc, seed) {
+  const s = SKIN[seed % 4], h = HAIR[(seed * 7 + 3) % 6], A = ACC[acc];
+  return { H:h, S:s[0], s:s[1], E:OL, m:'#7a2a2a', B:A.B, b:A.b, P:A.P, K:A.K, T:A.T, W:A.W, a:A.a, A:A.A, C:A.C, c:A.c };
+}
+function icePal(p) {
+  const o = {};
+  for (const k in p) {
+    const c = p[k]; if (!c) continue;
+    const n = parseInt(c.slice(1), 16);
+    const l = (0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)) / 255;
+    o[k] = l < 0.25 ? '#16304d' : l < 0.45 ? '#2f5f8f' : l < 0.7 ? '#5f9fd0' : '#bfe6ff';
+  }
+  return o;
+}
+const HEAD_F = ["...HHHH...","..HHHHHH..","..HSSSSH..","..SESSES..","..SSSSSS..","...SSSS..."];
+const HEAD_S = ["...HHHH...","..HHHHHH..","..HHHSSS..","..HHSSES..","..HSSSSSS.","...SSSS..."];
+const BODY_F    = ["..BBBBBB..",".BBBBBBBB.",".BbBBBBbB.",".SbBBBBbS."];
+const BODY_SEAT = ["..BBBBBB..",".BBBBBBBB.",".BbBBBBbB.",".BbBBBBbB."];
+const BODY_UP   = ["bBBBBBBBBb","..BBBBBB..","..BbBBbB..","..BBBBBB.."];
+const BODY_S    = ["...BBBB...","...BBBBB..","...BbBBB..","...BbBBB.."];
+const HEAD_B = ["...HHHH...","..HHHHHH..","..HHHHHH..","..HHHHHH..","..HHHHHH..","...SSSS..."];
+const LEGS_F = [
+  ["..PPPPPP..","..PP..PP..","..PP..PP..","..KK..KK.."],
+  ["..PPPPPP..","..PP..PP..","..PP..KK..","..KK......"],
+  ["..PPPPPP..","..PP..PP..","..KK..PP..","......KK.."]
+];
+const LEGS_S = [
+  ["...PPPP...","...PP.P...","...PP.P...","...KK.KK.."],
+  ["...PPPP...","..PP..P...",".PP....P..",".KK....KK."],
+  ["...PPPP...","....PP....","....PP....","....KKK..."]
+];
+const HAIRX = {
+  F: [[], [[1,2],[1,3],[1,4],[8,2],[8,3],[8,4]], [[4,-1],[5,-1],[4,-2],[5,-2]]],
+  S: [[], [[2,5],[3,5]], [[1,0],[1,1],[2,0]]]
+};
+const ACCX = {
+  F: {
+    personal: [[3,0,'A'],[4,0,'A'],[5,0,'A'],[6,0,'A'],[2,1,'A'],[7,1,'A'],[1,2,'a'],[1,3,'a'],[8,2,'a'],[8,3,'a']],
+    work:  [[3,6,'W'],[6,6,'W'],[4,6,'T'],[5,6,'T'],[4,7,'T'],[5,7,'T'],[4,8,'T'],[5,8,'T'],[4,9,'T'],[5,9,'T']],
+    plus:     [[3,-1,'C'],[4,-1,'C'],[5,-1,'C'],[6,-1,'C'],[2,0,'C'],[3,0,'C'],[4,0,'C'],[5,0,'C'],[6,0,'C'],[7,0,'C'],
+               [1,1,'c'],[2,1,'c'],[3,1,'c'],[4,1,'c'],[5,1,'c'],[6,1,'c'],[7,1,'c'],[8,1,'c']],
+    builder:  [[3,-1,'C'],[4,-1,'C'],[5,-1,'C'],[6,-1,'C'],[2,0,'C'],[3,0,'C'],[4,0,'C'],[5,0,'C'],[6,0,'C'],[7,0,'C'],[1,1,'c'],[2,1,'C'],[3,1,'C'],[4,1,'C'],[5,1,'C'],[6,1,'C'],[7,1,'C'],[8,1,'c'],[2,8,'W'],[3,8,'W'],[6,8,'W'],[7,8,'W']]
+  },
+  B: {
+    personal: [[3,0,'A'],[4,0,'A'],[5,0,'A'],[6,0,'A'],[1,2,'a'],[1,3,'a'],[8,2,'a'],[8,3,'a']],
+    work:  [[3,6,'W'],[6,6,'W']],
+    plus:     [[3,-1,'C'],[4,-1,'C'],[5,-1,'C'],[6,-1,'C'],[2,0,'C'],[3,0,'C'],[4,0,'C'],[5,0,'C'],[6,0,'C'],[7,0,'C'],
+               [2,1,'C'],[3,1,'C'],[4,1,'C'],[5,1,'C'],[6,1,'C'],[7,1,'C']],
+    builder:  [[3,-1,'C'],[4,-1,'C'],[5,-1,'C'],[6,-1,'C'],[2,0,'C'],[3,0,'C'],[4,0,'C'],[5,0,'C'],[6,0,'C'],[7,0,'C'],[1,1,'c'],[2,1,'C'],[3,1,'C'],[4,1,'C'],[5,1,'C'],[6,1,'C'],[7,1,'C'],[8,1,'c'],[2,8,'W'],[3,8,'W'],[4,8,'W'],[5,8,'W'],[6,8,'W'],[7,8,'W']]
+  },
+  S: {
+    personal: [[4,0,'A'],[5,0,'A'],[3,1,'A'],[3,2,'a'],[4,2,'a'],[3,3,'a'],[4,3,'a']],
+    work:  [[6,6,'W'],[7,6,'T'],[7,7,'T'],[7,8,'T']],
+    plus:     [[3,-1,'C'],[4,-1,'C'],[5,-1,'C'],[2,0,'C'],[3,0,'C'],[4,0,'C'],[5,0,'C'],[6,0,'C'],[7,0,'c'],[8,0,'c'],[9,0,'c']],
+    builder:  [[3,-1,'C'],[4,-1,'C'],[5,-1,'C'],[2,0,'C'],[3,0,'C'],[4,0,'C'],[5,0,'C'],[6,0,'C'],[7,0,'C'],[8,0,'c'],[3,8,'W'],[4,8,'W'],[5,8,'W'],[6,8,'W'],[7,8,'W']]
+  }
+};
+// o: {view:'F'|'S', flip, face, pose:'up', legs:null|index, hair, acc, hand}
+function drawChar(g, x, y, p, o) {
+  x = Math.round(x); y = Math.round(y);
+  const side = o.view === 'S', back = o.view === 'B', fl = !!o.flip;
+  const head = (side ? HEAD_S : back ? HEAD_B : HEAD_F).slice();
+  if (o.face === 'blink') head[3] = side ? "..HHSSSS.." : "..SSSSSS..";
+  if (o.face === 'sleep') head[3] = side ? "..HHSSsS.." : "..SsSSsS..";
+  if (o.face === 'talk' && !side) head[4] = "..SSmmSS..";
+  if (o.face === 'scream' && !side) { head[3] = "..SEEEES.."; head[4] = "..SSmmSS.."; head[5] = "...SmmS..."; }
+  const body = side ? BODY_S : o.pose === 'up' ? BODY_UP : o.legs == null ? BODY_SEAT : BODY_F;
+  let rows = head.concat(body);
+  if (o.legs != null) rows = rows.concat((side ? LEGS_S : LEGS_F)[o.legs]);
+  spr(g, rows, x, y, p, fl);
+  const pt = (cx, cy, k) => { const c = p[k]; if (!c) return; g.fillStyle = c; g.fillRect(x + (fl ? 9 - cx : cx), y + cy, 1, 1); };
+  for (const q of HAIRX[side ? 'S' : 'F'][o.hair || 0]) pt(q[0], q[1], 'H');
+  if (!side && o.pose === 'up') { pt(0,4,'S'); pt(9,4,'S'); pt(0,5,'b'); pt(9,5,'b'); }
+  for (const q of ACCX[side ? 'S' : back ? 'B' : 'F'][o.acc]) pt(q[0], q[1], q[2]);
+  if (side && o.legs != null) pt(o.hand ? 6 : 4, 9, 'S');
+}
+const MINI = [".HHHH.","HSSSSH","SESSES","SSSSSS",".BBBB.","SBBBBS",".PPPP.",".K..K."];
+const GHOST = [["..WWWW..",".WWWWWW.","WWEWWEWW","WWWWWWWW","WWWOOWWW","WWWWWWWW","WWWWWWWW","W.WW.WW.","..W..W.."],
+               ["..WWWW..",".WWWWWW.","WWEWWEWW","WWWWWWWW","WWWOOWWW","WWWWWWWW","WWWWWWWW",".WW.WW.W",".W..W..."]];
+const PIG = ["....PPPP.......","..PPPDDDPPP.e..",".PPPPPPPPPPPPe.","PPPPPPPPPPPEPP.","PPPPPPPPPPPPPNN",
+             "pPPPPPPPPPPPPNN",".PPPPPPPPPPPPP.","..pPPPPPPPPPp..","..pp..pp..pp..."];
+const PIGPAL = { P:'#f29bb3', p:'#d06f8f', e:'#d06f8f', E:OL, N:'#e57a9a', D:OL };
+
+// ---------- props ----------
+function bubble(g, x, y, w, h, fill) {
+  R(g, x + 1, y, w - 2, 1, OL); R(g, x + 1, y + h - 1, w - 2, 1, OL);
+  R(g, x, y + 1, 1, h - 2, OL); R(g, x + w - 1, y + 1, 1, h - 2, OL);
+  R(g, x + 1, y + 1, w - 2, h - 2, fill);
+  R(g, x + 2, y + h, 2, 1, OL); R(g, x + 2, y + h + 1, 1, 1, OL); R(g, x + 3, y + h - 1, 1, 1, fill);
+}
+function drawDesk(g, dx, dy) {
+  R(g, dx, dy, 24, 3, '#a8744c'); R(g, dx, dy, 24, 1, '#c08a5c');
+  R(g, dx, dy + 3, 24, 6, '#6b4329'); R(g, dx + 1, dy + 4, 22, 4, '#5a3721');
+  R(g, dx + 15, dy + 5, 4, 1, '#c9a06a');
+  R(g, dx + 1, dy + 9, 2, 2, '#3e2616'); R(g, dx + 21, dy + 9, 2, 2, '#3e2616');
+  R(g, dx + 3, dy, 7, 1, '#d5d9e0'); R(g, dx + 3, dy + 1, 7, 1, '#8f96a3');
+}
+function drawChair(g, cx, dy) {
+  R(g, cx + 1, dy - 7, 8, 8, '#3b3346'); R(g, cx + 2, dy - 6, 6, 1, '#4d4459');
+}
+function drawMonitor(g, mx, my, st, t, seed) {
+  R(g, mx, my, 10, 7, '#2a2733'); R(g, mx + 4, my + 7, 2, 1, '#2a2733'); R(g, mx + 3, my + 8, 4, 1, '#3b3846');
+  const sx = mx + 1, sy = my + 1;
+  if (st === 'sleep' || st === 'off') {
+    R(g, sx, sy, 8, 5, '#100e16');
+    const k = Math.floor(t * 2 + seed);
+    R(g, sx + hash(k) % 8, sy + hash(k + 99) % 5, 1, 1, '#5b5470');
+  } else if (st === 'wait') {
+    R(g, sx, sy, 8, 5, '#3a2f0c');
+    if (Math.floor(t * 3) % 2) { R(g, sx + 3, sy, 1, 3, '#ffd23f'); R(g, sx + 3, sy + 4, 1, 1, '#ffd23f'); }
+  } else if (st === 'fire') {
+    R(g, sx, sy, 8, 5, Math.floor(t * 6) % 2 ? '#5a0f0f' : '#2a0808');
+    R(g, sx + 2, sy + 1, 1, 3, '#ff5a3c'); R(g, sx + 5, sy + 1, 1, 3, '#ff5a3c');
+  } else {
+    R(g, sx, sy, 8, 5, '#0f1b26');
+    const cols = ['#7ee787','#79c0ff','#ffa657','#d2a8ff'];
+    const scroll = st === 'think' ? 0 : Math.floor(t * 3);
+    for (let i = 0; i < 3; i++) {
+      const h = hash(seed * 31 + i + scroll);
+      R(g, sx + 1 + (h % 2), sy + i * 2, 2 + (h >> 3) % 5, 1, cols[(h >> 7) % 4]);
+    }
+    if (st === 'think' && Math.floor(t * 2) % 2) R(g, sx + 6, sy + 4, 1, 1, '#ffffff');
+  }
+}
+function drawThermo(g, x, y, lvl) {
+  const c = lvl < 50 ? '#4cc38a' : lvl < 80 ? '#f2c14e' : '#e5533d';
+  R(g, x + 1, y, 3, 1, OL); R(g, x, y + 1, 1, 24, OL); R(g, x + 4, y + 1, 1, 24, OL);
+  R(g, x + 1, y + 1, 3, 24, '#e9f2f7');
+  const fh = Math.max(1, Math.round(23 * lvl / 100));
+  R(g, x + 1, y + 25 - fh, 3, fh, c); R(g, x + 1, y + 25 - fh, 1, fh, 'rgba(255,255,255,0.35)');
+  R(g, x - 1, y + 25, 7, 5, OL); R(g, x, y + 24, 5, 1, OL); R(g, x, y + 30, 5, 1, OL);
+  R(g, x, y + 25, 5, 5, c); R(g, x + 1, y + 26, 1, 1, 'rgba(255,255,255,0.6)');
+  for (let i = 0; i < 4; i++) R(g, x + 5, y + 4 + i * 6, 2, 1, '#8a8399');
+}
+function drawPig(g, x, y, t, phase) {
+  spr(g, PIG, x, y, PIGPAL, false);
+  const p = ((t + phase) / 2.2) % 1;
+  if (p < 0.7) {
+    const cy = Math.round(y - 14 + (p / 0.7) * 13), cx = x + 5;
+    R(g, cx, cy, 3, 3, '#b8860b'); R(g, cx, cy, 3, 1, '#f5c542'); R(g, cx + 1, cy + 1, 1, 1, '#fff1a8');
+  } else if (p < 0.85) {
+    R(g, x + 4, y - 3, 1, 1, '#fff1a8'); R(g, x + 8, y - 4, 1, 1, '#fff1a8'); R(g, x + 6, y - 6, 1, 1, '#ffd23f');
+  }
+}
+function coin(g, x, y) { R(g, x + 1, y, 3, 1, '#b8860b'); R(g, x, y + 1, 5, 3, '#b8860b'); R(g, x + 1, y + 4, 3, 1, '#b8860b'); R(g, x + 1, y + 1, 3, 3, '#f5c542'); R(g, x + 2, y + 2, 1, 1, '#fff1a8'); }
+function drawFire(g, x, y, w, h, t, seed) {
+  for (let c = 0; c < w; c++) {
+    const n = (Math.sin(c * 1.3 + t * 11 + seed) + Math.sin(c * 0.7 - t * 7.1 + seed * 2) + 2) / 4;
+    const env = 1 - Math.abs(c - (w - 1) / 2) / (w * 0.75);
+    const ht = Math.max(1, Math.round(h * (0.35 + 0.65 * n) * env));
+    for (let r = 0; r < ht; r++) {
+      const f = r / ht;
+      R(g, x + c, y - r, 1, 1, f < 0.3 ? '#c4302b' : f < 0.6 ? '#f0802a' : f < 0.88 ? '#ffd23f' : '#fff6c9');
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    const p = (t * 1.6 + i * 0.27 + seed * 0.1) % 1;
+    R(g, x + Math.round(w / 2 + Math.sin(t * 3 + i * 2) * w / 2.5), y - h - Math.round(p * 10), 1, 1, p < 0.5 ? '#ffd23f' : '#f0802a');
+  }
+}
+function drawSmoke(g, cx, top, t) {
+  for (let i = 0; i < 6; i++) {
+    const p = (t * 0.5 + i / 6) % 1;
+    g.globalAlpha = 0.6 * (1 - p);
+    R(g, cx + Math.round(Math.sin(t * 1.5 + i) * 3 + p * 4), top - Math.round(p * 18), p < 0.5 ? 2 : 3, p < 0.5 ? 2 : 3, '#6b6f78');
+  }
+  g.globalAlpha = 1;
+}
+function drawTomb(g, x, y) {
+  const G = '#8a8f98';
+  R(g, x + 2, y, 6, 1, G); R(g, x + 1, y + 1, 8, 1, G); R(g, x, y + 2, 10, 9, G);
+  R(g, x + 1, y + 2, 1, 8, '#a9aeb7'); R(g, x + 8, y + 2, 1, 9, '#6c717a');
+  R(g, x + 4, y + 3, 2, 6, '#5a5f68'); R(g, x + 2, y + 5, 6, 1, '#5a5f68');
+  R(g, x - 1, y + 10, 12, 2, '#5b4636'); R(g, x, y + 10, 2, 1, '#4c8a3f'); R(g, x + 8, y + 10, 2, 1, '#4c8a3f');
+}
+function drawGhost(g, x, y, t) {
+  g.globalAlpha = 0.65 + 0.25 * Math.sin(t * 3);
+  spr(g, GHOST[Math.floor(t * 4) % 2], x, Math.round(y + Math.sin(t * 2) * 2), { W:'#f2f4ff', E:OL, O:'#3a3346' }, false);
+  g.globalAlpha = 1;
+}
+
+// ---------- seat = chair + agent + hands + monitor + bubble ----------
+function drawSeat(g, dx, dy, ag, st, t, speaking, extra) {
+  extra = extra || {};
+  const p = palFor(ag.acc, ag.seed), cx = dx + 2, cy = dy - 10, ph = ag.seed * 0.37;
+  const blink = ((t + ph) % 3.7) < 0.12;
+  let face = blink ? 'blink' : null, y = cy;
+  if (st === 'sleep') { face = 'sleep'; y = cy + 1; }
+  if (st === 'talk' && speaking && Math.floor(t * 8) % 2) face = 'talk';
+  if (extra.lift) y -= Math.round(extra.lift);
+  const sink = extra.lift < 0;
+  if (sink) { g.save(); g.beginPath(); g.rect(cx - 4, dy - 40, 18, 40); g.clip(); }
+  drawChar(g, cx, y, p, { view:'F', face, pose:extra.arms === 'up' ? 'up' : undefined, legs:null, hair:ag.hair, acc:ag.acc });
+  if (sink) g.restore();
+  if (st === 'work') {
+    const a = Math.floor(t * 9 + ph) % 2;
+    R(g, cx + 2, dy - a, 1, 1, p.S); R(g, cx + 7, dy - (1 - a), 1, 1, p.S);
+  } else if (st === 'think') {
+    R(g, cx + 7, cy + 5, 1, 1, p.S); R(g, cx + 7, cy + 6, 1, 2, p.b); R(g, cx + 2, dy, 1, 1, p.S);
+  } else {
+    R(g, cx + 2, dy, 1, 1, p.S); R(g, cx + 7, dy, 1, 1, p.S);
+  }
+  drawMonitor(g, dx + 13, dy - 9, st === 'talk' ? 'think' : st, t, ag.seed);
+  if (extra.item) drawItemSeated(g, dx, dy, extra.item, t);
+  if (extra.wave) {
+    const w = Math.floor(t * 6) % 2;
+    R(g, cx + 8 + w, cy + 3, 1, 1, p.S); R(g, cx + 8, cy + 4, 1, 3, p.b);
+  }
+  if (extra.say) { sayBubble(g, cx + 6, cy - 12, extra.say); return; }
+  if (st === 'think') {
+    bubble(g, cx + 7, cy - 9, 11, 7, '#ffffff');
+    const n = Math.floor(t * 3) % 4;
+    for (let i = 0; i < n; i++) R(g, cx + 9 + i * 3, cy - 6, 1, 1, OL);
+  } else if (st === 'wait') {
+    const b = Math.floor(t * 4) % 2;
+    bubble(g, cx + 8, cy - 11 - b, 7, 9, '#ffd23f');
+    R(g, cx + 11, cy - 9 - b, 1, 3, OL); R(g, cx + 11, cy - 5 - b, 1, 1, OL);
+  } else if (st === 'sleep') {
+    for (let i = 0; i < 3; i++) {
+      const q = (t * 0.5 + i / 3) % 1;
+      g.globalAlpha = 1 - q;
+      txt(g, 'Z', cx + 8 + Math.round(q * 5), cy - 2 - Math.round(q * 11), '#dfe7ff');
+    }
+    g.globalAlpha = 1;
+  } else if (st === 'talk' && speaking) {
+    talkBubble(g, cx + 7, cy - 9, t);
+  }
+}
+function talkBubble(g, x, y, t) {
+  bubble(g, x, y, 12, 7, '#ffffff');
+  const k = Math.floor(t * 5);
+  R(g, x + 2, y + 2, 3 + hash(k) % 6, 1, OL); R(g, x + 2, y + 4, 2 + hash(k + 7) % 5, 1, '#8a8399');
+}
+function sayBubble(g, x, y, s) {
+  const w = txtW(s) + 6;
+  bubble(g, x, y, w, 9, '#ffffff'); txt(g, s, x + 3, y + 2, OL);
+}
+
+// ---------- arrival props: what each account carries ----------
+const ITEM = { work:'maletin', personal:'cafe', plus:'mochila' };
+function drawItem(g, x, y, item, view, flip, hand, t) {
+  x = Math.round(x); y = Math.round(y);
+  const side = view === 'S', hx = side ? (flip ? 9 - (hand ? 6 : 4) : (hand ? 6 : 4)) : 8;
+  if (item === 'maletin') {
+    const bx = side ? x + hx - 1 : x + 7;
+    R(g, bx, y + 10, 4, 3, '#6b4329'); R(g, bx, y + 10, 4, 1, '#8a5a3a'); R(g, bx + 1, y + 11, 2, 1, '#c9a06a');
+  } else if (item === 'cafe') {
+    const cx = side ? x + hx : x + 8;
+    R(g, cx, y + 7, 2, 3, '#f4efe6'); R(g, cx, y + 7, 2, 1, '#6b4329');
+    g.globalAlpha = 0.6; R(g, cx + (Math.floor(t * 3) % 2), y + 5 - Math.floor(t * 3) % 2, 1, 1, '#ffffff'); g.globalAlpha = 1;
+  } else if (item === 'mochila') {
+    if (side) { const bx = flip ? x + 7 : x + 1; R(g, bx, y + 6, 2, 4, '#3fc79a'); R(g, bx, y + 6, 2, 1, '#25916c'); }
+    else if (view === 'B') { R(g, x + 3, y + 6, 4, 4, '#3fc79a'); R(g, x + 3, y + 6, 4, 1, '#25916c'); R(g, x + 4, y + 8, 2, 1, '#25916c'); }
+    else { R(g, x + 2, y + 6, 1, 2, '#25916c'); R(g, x + 7, y + 6, 1, 2, '#25916c'); }
+  }
+}
+function drawItemSeated(g, dx, dy, item, t) {
+  if (item === 'maletin') { R(g, dx - 4, dy + 7, 4, 3, '#6b4329'); R(g, dx - 4, dy + 7, 4, 1, '#8a5a3a'); R(g, dx - 3, dy + 6, 2, 1, '#3e2616'); }
+  else if (item === 'cafe') {
+    R(g, dx + 11, dy - 2, 2, 2, '#f4efe6'); R(g, dx + 11, dy - 2, 2, 1, '#6b4329');
+    const q = (t * 0.8) % 1; g.globalAlpha = 0.7 * (1 - q); R(g, dx + 11 + Math.round(Math.sin(t * 3)), dy - 4 - Math.round(q * 4), 1, 1, '#ffffff'); g.globalAlpha = 1;
+  } else if (item === 'mochila') { R(g, dx + 1, dy - 6, 2, 5, '#3fc79a'); R(g, dx + 1, dy - 6, 2, 1, '#25916c'); }
+}
+
+// ---------- arrivals & departures ----------
+function drawRug(g, rx, ry, rw, col, label, p) {
+  const w = Math.round(rw * Math.max(0, Math.min(1, p)));
+  if (w <= 0) return;
+  R(g, rx, ry, w, 42, col); R(g, rx + 1, ry + 1, Math.max(0, w - 2), 40, 'rgba(255,255,255,0.06)');
+  R(g, rx, ry, w, 1, 'rgba(0,0,0,0.3)'); R(g, rx, ry + 41, w, 1, 'rgba(0,0,0,0.3)');
+  for (let y = ry + 2; y < ry + 40; y += 3) R(g, rx - 1, y, 1, 1, col);
+  if (w < rw) {
+    R(g, rx + w - 3, ry - 1, 3, 44, col); R(g, rx + w - 2, ry - 1, 1, 44, 'rgba(255,255,255,0.25)'); R(g, rx + w, ry - 1, 1, 44, 'rgba(0,0,0,0.4)');
+    return;
+  }
+  for (let y = ry + 2; y < ry + 40; y += 3) R(g, rx + rw, y, 1, 1, col);
+  R(g, rx + 2, ry + 2, txtW(label) + 4, 7, 'rgba(0,0,0,0.35)');
+  txt(g, label, rx + 4, ry + 3, '#ffe9a8');
+}
+function drawDeskBuilt(g, dx, dy, p, t, seed) {
+  if (p <= 0) return;
+  if (p >= 1) { drawDesk(g, dx, dy); return; }
+  g.save(); g.beginPath(); g.rect(dx - 1, dy + 11 - Math.ceil(12 * p), 26, 13); g.clip(); drawDesk(g, dx, dy); g.restore();
+  for (let i = 0; i < 8; i++) {
+    const h = hash(i * 31 + seed + Math.floor(t * 10));
+    g.globalAlpha = 0.8; R(g, dx - 2 + h % 28, dy + 11 - Math.ceil(12 * p) - (h >> 5) % 5, 1, 1, i % 2 ? '#e8dcc8' : '#cfc6b8'); g.globalAlpha = 1;
+  }
+}
+function drawDoor(g, x, y, open, ding) {
+  R(g, x - 1, y + 1, 12, 15, '#4a3322');
+  if (open) { R(g, x, y + 2, 10, 14, '#120e18'); R(g, x, y + 2, 2, 14, '#7a5232'); R(g, x + 2, y + 15, 8, 1, '#2a2236'); }
+  else { R(g, x, y + 2, 10, 14, '#7a5232'); R(g, x + 1, y + 3, 8, 5, '#8a6040'); R(g, x + 1, y + 9, 8, 5, '#8a6040'); R(g, x + 8, y + 9, 1, 1, '#f5c542'); }
+  if (ding) for (let i = 0; i < 4; i++) { const q = (ding + i * 0.25) % 1; R(g, x + 5 + Math.round(Math.cos(i * 1.6) * (3 + q * 6)), y + 2 - Math.round(q * 5), 1, 1, '#ffd23f'); }
+}
+function drawPoof(g, cx, cy, p) {
+  g.globalAlpha = Math.max(0, 1 - p);
+  if (p < 0.4) R(g, cx - 1, cy - 1, 3, 3, '#ffffff');
+  for (let k = 0; k < 10; k++) {
+    const a = k * 0.628, r = 1 + p * 6;
+    R(g, cx + Math.round(Math.cos(a) * r), cy + Math.round(Math.sin(a) * r * 0.7), k % 3 ? 1 : 2, 1, k % 2 ? '#ffffff' : '#c9c3d6');
+  }
+  g.globalAlpha = 1;
+}
+function drawBeam(g, cx, top, bottom, p, t) {
+  const b = top + Math.round((bottom - top) * Math.min(1, p));
+  g.globalAlpha = 0.28; R(g, cx - 5, top, 10, b - top, '#8ff3ff');
+  g.globalAlpha = 0.55; R(g, cx - 2, top, 4, b - top, '#e6fdff');
+  g.globalAlpha = 1;
+  for (let y = top + (Math.floor(t * 30) % 4); y < b; y += 4) R(g, cx - 4, y, 8, 1, 'rgba(230,253,255,0.5)');
+  for (let i = 0; i < 5; i++) { const h = hash(i * 17 + Math.floor(t * 12)); R(g, cx - 6 + h % 12, top + (h >> 4) % Math.max(1, b - top), 1, 1, '#ffffff'); }
+}
+// timeline: [[name, dur], ...] -> {name, p, tin, rem}
+function phaseAt(segs, lt) {
+  let acc = 0;
+  for (const s of segs) { if (lt < acc + s[1]) return { name:s[0], p:(lt - acc) / s[1], tin:lt - acc, rem:acc + s[1] - lt }; acc += s[1]; }
+  return { name:segs[segs.length - 1][0], p:1, tin:0, rem:0 };
+}
+function segTotal(segs) { return segs.reduce((a, s) => a + s[1], 0); }
+function visitorSegs(o, v) {
+  const seatX = v.slotDx + 2, doorX = o.x + o.door, laneY = o.y + 4;
+  const walk = Math.abs(seatX - doorX) / 22, desc = (o.deskY - 10 - laneY) / 22;
+  return [['rugIn', v.newZone ? 1.1 : 0.01], ['doorOpen', 0.7], ['emerge', 0.5], ['laneIn', walk], ['build', 1.5], ['descend', desc],
+          ['greet', 2.8], ['work', 13], ['wave', 2], ['ascend', desc], ['laneOut', walk], ['enter', 0.7], ['rugOut', v.newZone ? 1.1 : 0.01], ['gap', 4]];
+}
+function visitorState(o, v, t) {
+  if (!v._segs) { v._segs = visitorSegs(o, v); v._T = segTotal(v._segs); }
+  const lt = ((t + v.offset) % v._T + v._T) % v._T;
+  const ph = phaseAt(v._segs, lt), n = ph.name;
+  const seatX = v.slotDx + 2, doorX = o.x + o.door, laneY = o.y + 4, seatY = o.deskY - 10;
+  const s = { ph, desk:0, rug:0, door:false, ding:0, walker:null, seated:false };
+  const order = v._segs.map(x => x[0]), idx = order.indexOf(n);
+  const after = (name) => idx > order.indexOf(name);
+  s.rug = n === 'rugIn' ? ph.p : n === 'rugOut' ? 1 - ph.p : (after('rugIn') && !after('rugOut') && n !== 'gap') ? 1 : 0;
+  if (n === 'build') s.desk = ph.p;
+  else if (after('build') && order.indexOf(n) < order.indexOf('laneOut')) s.desk = 1;
+  else if (n === 'laneOut') s.desk = Math.max(0, 1 - ph.tin / 1.2);
+  s.door = n === 'doorOpen' ? ph.p > 0.4 : n === 'emerge' || (n === 'laneIn' && ph.tin < 0.5) || (n === 'laneOut' && ph.rem < 0.6) || n === 'enter';
+  if (n === 'doorOpen') s.ding = ph.p;
+  const f = [1, 0, 2, 0][Math.floor(t * 8) % 4], fs = [1, 0, 2, 0][Math.floor(t * 8) % 4];
+  if (n === 'emerge') s.walker = { x:doorX, y:o.y + 1 + (laneY - o.y - 1) * ph.p, view:'F', legs:f };
+  else if (n === 'laneIn') s.walker = { x:doorX + (seatX - doorX) * ph.p, y:laneY, view:'S', flip:seatX < doorX, legs:fs, hand:fs === 1 ? 1 : 0 };
+  else if (n === 'build') s.walker = { x:seatX, y:laneY, view:'F', legs:0 };
+  else if (n === 'descend') s.walker = { x:seatX, y:laneY + (seatY - laneY) * ph.p, view:'F', legs:f };
+  else if (n === 'ascend') s.walker = { x:seatX, y:seatY + (laneY - seatY) * ph.p, view:'B', legs:f };
+  else if (n === 'laneOut') s.walker = { x:seatX + (doorX - seatX) * ph.p, y:laneY, view:'S', flip:doorX < seatX, legs:fs, hand:fs === 1 ? 1 : 0 };
+  else if (n === 'enter') s.walker = { x:doorX, y:laneY + (o.y + 1 - laneY) * ph.p, view:'B', legs:f, alpha:1 - ph.p };
+  s.seated = n === 'greet' || n === 'work' || n === 'wave';
+  return s;
+}
+
+function drawMinis(g, x, y, ag, n, t) {
+  const p = palFor(ag.acc, ag.seed + 3);
+  for (let i = 0; i < n; i++) {
+    const b = Math.floor(t * 4 + i) % 2;
+    spr(g, MINI, x + i * 8, y - b, p, false);
+    R(g, x + i * 8 + 1, y + 8, 4, 1, 'rgba(0,0,0,0.25)');
+  }
+}
+
+// ---------- kindling pod ----------
+function drawPod(g, px, py, pod, st, t, fx) {
+  fx = fx || {};
+  const light = { run:'#58e1f0', fire:'#ff5a3c', frozen:'#9fdcff', dead:'#6b6f78', empty:'#2a3138' }[st];
+  R(g, px, py + 26, 22, 4, '#4a5560'); R(g, px, py + 26, 22, 1, '#5f6b77');
+  R(g, px + 3, py + 28, 16, 1, st === 'fire' && Math.floor(t * 6) % 2 ? '#ffd23f' : light);
+  R(g, px + 1, py + 2, 20, 24, st === 'frozen' ? '#d9f3fb' : st === 'dead' || st === 'empty' ? '#14191e' : '#1f2a33');
+  if (st === 'empty') {
+    R(g, px + 2, py + 20, 18, 2, '#3a424b');
+    if (fx.beam != null) drawBeam(g, px + 11, py - 26, py + 25, fx.beam, t);
+    R(g, px + 2, py, 18, 1, '#3d5560'); R(g, px, py + 2, 1, 24, '#3d5560'); R(g, px + 21, py + 2, 1, 24, '#3d5560');
+    R(g, px + 1, py + 1, 1, 1, '#3d5560'); R(g, px + 20, py + 1, 1, 1, '#3d5560');
+    return;
+  }
+  const p = palFor(pod.acc, pod.seed), cx = px + 2, cy = py + 10;
+  if (st === 'fire') drawFire(g, px + 1, py + 25, 20, 13, t, pod.seed);
+  R(g, px + 2, py + 20, 18, 2, '#5c6670');
+  if (st !== 'dead') {
+    R(g, px + 12, py + 13, 8, 6, '#2a2733');
+    drawMonitor(g, px + 11, py + 11, st === 'run' ? 'work' : st === 'fire' ? 'fire' : 'off', t, pod.seed);
+  }
+  if (st === 'run') {
+    drawChar(g, cx, cy, p, { view:'F', face: ((t + pod.seed) % 3.3) < 0.12 ? 'blink' : null, legs:null, hair:pod.hair, acc:pod.acc });
+    const a = Math.floor(t * 9 + pod.seed) % 2;
+    R(g, cx + 2, py + 20 - a, 1, 1, p.S); R(g, cx + 7, py + 20 - (1 - a), 1, 1, p.S);
+    if (fx.mat != null && fx.mat < 1) {
+      // materialize: pixels not yet "beamed in" show the pod's interior, the frontier sparkles
+      for (let yy = cy - 2; yy < py + 21; yy++) for (let xx = cx - 1; xx < cx + 9; xx++) {
+        const h = (hash(xx * 131 + yy * 7) % 1000) / 1000;
+        if (h > fx.mat) R(g, xx, yy, 1, 1, yy >= py + 20 ? '#5c6670' : '#1f2a33');
+        else if (fx.mat - h < 0.08) R(g, xx, yy, 1, 1, '#bff8ff');
+      }
+      drawBeam(g, px + 11, py - 26, py + 25, 1, t);
+    }
+  } else if (st === 'fire') {
+    const j = Math.floor(t * 14) % 2;
+    drawChar(g, cx + j, cy - 1, p, { view:'F', face:'scream', pose:'up', legs:null, hair:pod.hair, acc:pod.acc });
+    drawFire(g, px + 2, py + 25, 18, 5, t + 1.3, pod.seed + 5);
+    drawSmoke(g, px + 9, py - 1, t + pod.seed);
+  } else if (st === 'frozen') {
+    drawChar(g, cx, cy, icePal(p), { view:'F', face:'blink', legs:null, hair:pod.hair, acc:pod.acc });
+    g.globalAlpha = 0.3; R(g, cx - 1, cy - 3, 12, 14, '#9fdcff'); g.globalAlpha = 1;
+    R(g, cx - 1, cy - 3, 12, 1, '#ffffff'); R(g, cx - 1, cy - 3, 1, 14, '#ffffff');
+    R(g, cx + 1, cy - 1, 1, 3, '#ffffff'); R(g, cx + 2, cy - 2, 1, 1, '#ffffff');
+    for (let i = 0; i < 3; i++) {
+      const k = Math.floor(t * 2 + i * 3);
+      if (hash(k + pod.seed) % 3 === 0) {
+        const sx = px + 2 + hash(k * 7 + i) % 18, sy = py + 2 + hash(k * 13 + i) % 20;
+        R(g, sx, sy, 1, 1, '#ffffff'); R(g, sx - 1, sy, 1, 1, 'rgba(255,255,255,0.5)'); R(g, sx + 1, sy, 1, 1, 'rgba(255,255,255,0.5)');
+        R(g, sx, sy - 1, 1, 1, 'rgba(255,255,255,0.5)'); R(g, sx, sy + 1, 1, 1, 'rgba(255,255,255,0.5)');
+      }
+    }
+  } else if (st === 'dead') {
+    drawTomb(g, px + 6, py + 13);
+    drawGhost(g, px + 7, py - 12, t + pod.seed);
+  }
+  const gc = st === 'fire' ? (Math.floor(t * 8) % 2 ? '#ff9a5c' : '#ffd23f') : st === 'frozen' ? '#ffffff' : st === 'dead' ? '#59606a' : '#7fd8e8';
+  R(g, px + 2, py, 18, 1, gc); R(g, px + 1, py + 1, 1, 1, gc); R(g, px + 20, py + 1, 1, 1, gc);
+  if (st === 'dead') {
+    R(g, px, py + 2, 1, 7, gc); R(g, px, py + 13, 1, 13, gc); R(g, px + 21, py + 2, 1, 15, gc); R(g, px + 21, py + 21, 1, 5, gc);
+    R(g, px - 2, py + 29, 2, 1, '#7fd8e8'); R(g, px + 23, py + 28, 1, 1, '#7fd8e8'); R(g, px + 24, py + 29, 2, 1, '#7fd8e8');
+  } else {
+    R(g, px, py + 2, 1, 24, gc); R(g, px + 21, py + 2, 1, 24, gc);
+    R(g, px + 2, py + 3, 1, 6, 'rgba(255,255,255,0.35)');
+  }
+  if (st === 'frozen') { R(g, px + 1, py + 2, 3, 1, '#ffffff'); R(g, px + 1, py + 3, 1, 2, '#ffffff'); R(g, px + 18, py + 2, 3, 1, '#ffffff'); R(g, px + 20, py + 3, 1, 2, '#ffffff'); }
+}
+
+// ---------- the world: procedural offices, regenerated every day ----------
+const TS = 8, GY = 24, GC = 60, GR = 38;
+const DOW = ['DOM','LUN','MAR','MIE','JUE','VIE','SAB'];
+const MON = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+const SPEC = [
+  { name:'LAPTOP', kind:'MAC', load:79, spend:56.10, wall:'#e8d9bf', floor:'parquet',
+    zones:[ { repo:'PIXELAGENTS', agents:[{acc:'personal', st:'work', seed:1}, {acc:'personal', st:'think', seed:2}] },
+            { repo:'CHRONO', agents:[{acc:'work', st:'work', seed:3}, {acc:'personal', st:'wait', seed:4}] },
+            { repo:'NOD', agents:[{acc:'work', st:'sleep', seed:5}] } ],
+    visitor:{ acc:'work', seed:21, newZone:'BLOG', offset:0 }, convos:[[1,2],[3,0],[0,3]] },
+  { name:'WORKSTATION', kind:'PC', load:34, spend:12.40, wall:'#b9c4d6', floor:'carpet',
+    zones:[ { repo:'DELEGA', agents:[{acc:'work', st:'work', seed:6, minis:2}, {acc:'work', st:'work', seed:7}] },
+            { repo:'SPEC', agents:[{acc:'personal', st:'think', seed:8}] } ],
+    visitor:{ acc:'personal', seed:22, zoneRepo:'SPEC', offset:9 }, convos:[[2,1]] },
+  { name:'VM-1', kind:'VM', load:12, spend:3.20, wall:'#3a404c', floor:'server', racks:2,
+    zones:[ { repo:'SHOP', agents:[{acc:'plus', st:'work', seed:9, poof:2}, {acc:'work', st:'wait', seed:10}] } ], convos:[] },
+  { name:'KINDLING', kind:'MICROVM', load:58, spend:8.70, wall:'#24323d', floor:'lab',
+    pods:[ {name:'SHOP', acc:'work', st:'run', seed:11}, {name:'DBDEMO', acc:'personal', st:'fire', seed:12},
+           {name:'HELLO', acc:'work', st:'frozen', seed:13}, {name:'SANDBOX', acc:'plus', st:'dead', seed:14},
+           {name:'HUB', acc:'personal', st:'run', seed:15, cycle:true}, {name:'SPEC', acc:'work', st:'frozen', seed:16} ] }
+];
+const RUGS = ['#6e3a4c','#2f5d62','#4f4380','#6d5f2b','#3d5a3a','#5a3d5c'];
+const STRAT_NAME = { alas:'ALAS', escalera:'ESCALERA', mancha:'MANCHA', mordida:'MORDIDA', cueva:'CUEVA' };
+const SEASONS = {
+  verano:  { g:'#3f7a3a', d:'#356b31', l:'#4a8a43', fl:['#f2c14e','#ffffff','#e57a9a','#9b5de5'], c:'#3f8a3a', cd:'#2e6a2c', ch:'#5aa84a' },
+  otono:   { g:'#6b7a34', d:'#5a6a2c', l:'#7a8a3c', fl:['#e8833a','#c4302b','#f2c14e'],           c:'#d9822b', cd:'#a85a1c', ch:'#f2b04e' },
+  invierno:{ g:'#d6e2ea', d:'#c4d2dc', l:'#f2f7fa', fl:['#9fdcff','#ffffff'],                     c:'#2f6a4a', cd:'#24523a', ch:'#ffffff' }
+};
+function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function makeRng(seed) {
+  let a = seed | 0;
+  const f = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  return { f, i:(lo, hi) => lo + Math.floor(f() * (hi - lo + 1)), pick:(arr) => arr[Math.floor(f() * arr.length)] };
+}
+function shuffle(arr, rg) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rg.f() * (i + 1)); const x = arr[i]; arr[i] = arr[j]; arr[j] = x; } return arr; }
+function dayInfo(offset) {
+  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + (offset | 0));
+  const m = d.getMonth();
+  return { key:d.getFullYear() + '-' + (m + 1) + '-' + d.getDate(), label:DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[m],
+           season: m >= 8 && m <= 10 ? 'otono' : (m === 11 || m <= 1) ? 'invierno' : 'verano' };
+}
+function plain(s) { return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase(); }
+
+// one office: its contents decide the size of its main hall
+function makeOffice(spec, idx, rg) {
+  const o = { idx, name:spec.name, kind:spec.kind, load:spec.load, spend:spec.spend, wall:spec.wall, floor:spec.floor, racks:spec.racks || 0, th:13 };
+  o.signEnd = 5 + txtW(o.name + ' · ' + o.kind) + 6;
+  o.door = o.signEnd + 6 + rg.i(0, 12);
+  if (spec.pods) {
+    o.pods = spec.pods.map(p => Object.assign({}, p, { hair:p.acc === 'plus' ? p.seed % 2 : p.seed % 3 }));
+    o.tw = 34;
+    return o;
+  }
+  o.agents = []; o.zones = []; o.convos = spec.convos;
+  o.visitor = spec.visitor ? Object.assign({}, spec.visitor) : null;
+  if (o.visitor) o.visitor.hair = o.visitor.acc === 'plus' ? o.visitor.seed % 2 : o.visitor.seed % 3;
+  const ids = []; let id = 0;
+  spec.zones.forEach(z => { ids.push(z.agents.map(() => id++)); z.agents.forEach(a => o.agents.push(Object.assign({}, a, { hair:a.acc === 'plus' ? a.seed % 2 : a.seed % 3 }))); });
+  // repos swap places every day; agent ids stay put so conversations keep their pairs
+  let cur = 12 + (o.racks ? o.racks * 16 + 4 : 0);
+  for (const zi of shuffle(spec.zones.map((z, i) => i), rg)) {
+    const z = spec.zones[zi], zid = ids[zi];
+    zid.forEach((aid, k) => { o.agents[aid].rel = cur + 5 + k * 30; });
+    let n = zid.length;
+    if (o.visitor && o.visitor.zoneRepo === z.repo) { o.visitor.rel = cur + 5 + n * 30; n++; }
+    o.zones.push({ repo:z.repo, ids:zid });
+    cur += (n - 1) * 30 + 34 + 6;
+  }
+  if (o.visitor && o.visitor.newZone) { o.visitor.rel = cur + 5; cur += 40; }
+  if (o.visitor) o.visitor.zone = o.visitor.zoneRepo ? o.zones.findIndex(z => z.repo === o.visitor.zoneRepo) : null;
+  o.tw = Math.ceil((cur + 30) / TS);
+  return o;
+}
+function placeRow(row, ty, rg) {
+  const spare = Math.max(0, GC - row[0].tw - row[1].tw - 1), left = rg.i(0, spare), gap = 1 + rg.i(0, spare - left);
+  row[0].tx = left; row[1].tx = left + row[0].tw + gap;
+  row.forEach(o => { o.ty = Math.min(GR - 1 - o.th, ty + rg.i(0, 2)); });
+}
+
+// growth strategies: how each office sprouts past its rectangular hall
+function addRect(o, oi, cx, x, y, w, h, anchor, strict) {
+  for (let tries = 0; tries < 8; tries++) {
+    let ok = w >= 2 && h >= 2;
+    for (let r = y; ok && r < y + h; r++) for (let c = x; ok && c < x + w; c++) if (!(cx.own[r] && cx.own[r][c] === oi) && !cx.free(c, r, oi)) ok = false;
+    if (ok) { for (let r = y; r < y + h; r++) for (let c = x; c < x + w; c++) cx.own[r][c] = oi; return true; }
+    if (strict) return false;
+    if (h > 2) h--; else if (w > 3) { w--; if (anchor === 'left') x++; } else return false;
+  }
+  return false;
+}
+const GROW = {
+  alas(o, oi, cx) {
+    const rg = cx.rg;
+    for (let k = 0, n = rg.i(1, 3); k < n; k++) {
+      const side = rg.pick(['bottom', 'bottom', 'left', 'right']);
+      if (side === 'bottom') { const ww = rg.i(4, Math.min(12, o.tw - 2)); addRect(o, oi, cx, o.tx + rg.i(0, o.tw - ww), o.ty + o.th, ww, rg.i(2, 5), 'down'); }
+      else { const ww = rg.i(3, 7); addRect(o, oi, cx, side === 'left' ? o.tx - ww : o.tx + o.tw, o.ty + rg.i(3, o.th - 3), ww, rg.i(3, 7), side); }
+    }
+  },
+  escalera(o, oi, cx) {
+    const rg = cx.rg, dir = rg.f() < 0.5 ? 1 : -1;
+    let w = rg.i(7, Math.min(13, o.tw - 2)), x = dir > 0 ? o.tx + rg.i(0, 3) : o.tx + o.tw - w - rg.i(0, 3), y = o.ty + o.th;
+    for (let s = 0, n = rg.i(2, 4); s < n && w >= 4; s++) {
+      if (!addRect(o, oi, cx, x, y, w, 2, 'down', true)) break;
+      const sh = rg.i(2, Math.max(2, w - 3));
+      y += 2; x += dir * sh; w -= rg.i(0, 2);
+    }
+  },
+  mancha(o, oi, cx, count) {
+    const rg = cx.rg, own = cx.own;
+    for (let k = 0, n = count || rg.i(18, 40); k < n; k++) {
+      const cand = [];
+      for (let r = o.ty + 3; r < GR; r++) for (let c = 0; c < GC; c++) if (own[r][c] === oi)
+        for (const d of [[1,0],[-1,0],[0,1],[0,-1]]) if (cx.free(c + d[0], r + d[1], oi)) cand.push([c + d[0], r + d[1]]);
+      if (!cand.length) break;
+      const q = rg.pick(cand); own[q[1]][q[0]] = oi;
+    }
+    // fill pockets so the blob reads as one room
+    for (let r = o.ty; r < GR; r++) for (let c = 0; c < GC; c++) if (cx.free(c, r, oi)) {
+      let n = 0; for (const d of [[1,0],[-1,0],[0,1],[0,-1]]) if (own[r + d[1]] && own[r + d[1]][c + d[0]] === oi) n++;
+      if (n >= 3) own[r][c] = oi;
+    }
+  },
+  mordida(o, oi, cx) {
+    const rg = cx.rg, r = o.ty + o.th - 1;
+    for (let c = 0, n = rg.i(1, 3); c < n; c++) cx.own[r][o.tx + c] = -1;
+    for (let c = 0, n = rg.i(1, 2); c < n; c++) cx.own[r][o.tx + o.tw - 1 - c] = -1;
+    GROW.mancha(o, oi, cx, rg.i(8, 18));
+  },
+  cueva(o, oi, cx) {
+    const rg = cx.rg, x0 = o.tx + rg.i(1, 6), x1 = o.tx + o.tw - rg.i(1, 6), y0 = o.ty + o.th, y1 = Math.min(GR - 1, y0 + rg.i(4, 7));
+    let alive = {};
+    const key = (c, r) => c + ',' + r;
+    for (let r = y0; r <= y1; r++) for (let c = x0; c < x1; c++) if (cx.free(c, r, oi) && (r === y0 || rg.f() < 0.55)) alive[key(c, r)] = 1;
+    for (let it = 0; it < 4; it++) {
+      const next = {};
+      for (let r = y0; r <= y1; r++) for (let c = x0; c < x1; c++) {
+        if (!cx.free(c, r, oi)) continue;
+        let n = 0;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dr || dc) {
+          const rr = r + dr, cc = c + dc;
+          if (alive[key(cc, rr)] || (rr < y0 && cx.own[rr] && cx.own[rr][cc] === oi)) n++;
+        }
+        if (n >= 5 || (alive[key(c, r)] && n >= 4)) next[key(c, r)] = 1;
+      }
+      alive = next;
+    }
+    const stack = []; for (let c = x0; c < x1; c++) if (alive[key(c, y0)]) stack.push([c, y0]);
+    const seen = {};
+    while (stack.length) {
+      const q = stack.pop(), k = key(q[0], q[1]);
+      if (seen[k] || !alive[k]) continue; seen[k] = 1; cx.own[q[1]][q[0]] = oi;
+      for (const d of [[1,0],[-1,0],[0,1],[0,-1]]) stack.push([q[0] + d[0], q[1] + d[1]]);
+    }
+  }
+};
+
+function planWall(o, rg, guinos) {
+  o.windows = []; o.wallDeco = []; o.poster = null;
+  const wallIds = guinos ? Object.keys(POPD).filter(k => POPD[k].place === 'wall') : [];
+  let x = o.door + 16; const end = o.w - 30;
+  while (x < end) {
+    const opts = [];
+    if (o.floor === 'parquet' && o.windows.length < 2) opts.push('win');
+    if ((o.floor === 'carpet' || o.floor === 'lab') && o.poster == null) opts.push('poster');
+    if (wallIds.length && o.wallDeco.length < 3) opts.push('pop');
+    if (!opts.length) break;
+    const k = rg.pick(opts);
+    if (k === 'win') { if (x + 22 > end) break; o.windows.push(x); x += 22; }
+    else if (k === 'poster') { if (x + 12 > end) break; o.poster = x; x += 12; }
+    else { const id = rg.pick(wallIds), d = POPD[id]; if (x + d.w > end) break; o.wallDeco.push({ id, x:o.x + x, y:o.y + 2 + Math.max(0, 12 - d.h), w:d.w, h:d.h }); x += d.w; }
+    x += rg.i(6, 18);
+  }
+}
+const DECO_SIZE = { plant:[8,12], sofa:[34,11], cooler:[7,17], table:[16,10], shelf:[12,16], lamp:[5,16] };
+function decoSize(id) { return DECO_SIZE[id] || (POPD[id] ? [POPD[id].w, POPD[id].h] : [8, 8]); }
+function placeDecor(o, oi, own, rg, guinos) {
+  o.decor = [];
+  const popF = guinos ? Object.keys(POPD).filter(k => POPD[k].place === 'floor') : [];
+  const basic = o.racks ? ['plant', 'lamp', 'shelf'] : o.pods ? ['plant', 'lamp', 'cooler'] : ['plant', 'sofa', 'cooler', 'table', 'shelf', 'lamp'];
+  const ownsPx = (x, y) => { const c = Math.floor(x / TS), r = Math.floor((y - GY) / TS); return r >= 0 && c >= 0 && r < GR && c < GC && own[r][c] === oi; };
+  const fits = (x, y, w, h) => {
+    for (let yy = y; yy < y + h + 3; yy += 3) for (let xx = x; xx < x + w + 3; xx += 3) if (!ownsPx(Math.min(xx, x + w - 1), Math.min(yy, y + h - 1))) return false;
+    return !o.decor.some(d => x < d.x + d.w + 3 && d.x < x + w + 3 && y < d.y + d.h + 2 && d.y < y + h + 2);
+  };
+  const pickId = () => popF.length && rg.f() < 0.55 ? rg.pick(popF) : rg.pick(basic);
+  for (let n = rg.i(2, 4), tries = 0; n > 0 && tries < 50; tries++) {
+    const id = pickId(), s = decoSize(id), y = o.y + 102 - s[1], x = o.x + rg.i(8, Math.max(8, o.w - 36 - s[0]));
+    if (y >= o.y + 81 && fits(x, y, s[0], s[1])) { o.decor.push({ id, x, y, w:s[0], h:s[1] }); n--; }
+  }
+  const wing = [];
+  for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) if (own[r][c] === oi && (r >= o.ty + o.th || c < o.tx || c >= o.tx + o.tw)) wing.push([c, r]);
+  for (let m = Math.min(5, Math.ceil(wing.length / 9)), tries = 0; m > 0 && wing.length && tries < 80; tries++) {
+    const q = rg.pick(wing), id = pickId(), s = decoSize(id), x = q[0] * TS + rg.i(0, 3), y = GY + q[1] * TS + 8 - s[1];
+    if (fits(x, y, s[0], s[1])) { o.decor.push({ id, x, y, w:s[0], h:s[1] }); m--; }
+  }
+}
+
+function buildWorld(day, guinos) {
+  const rg = makeRng(strHash(day.key));
+  const offs = SPEC.map((s, i) => makeOffice(s, i, rg));
+  const own = []; for (let r = 0; r < GR; r++) own.push(new Array(GC).fill(-1));
+  const reserved = new Set(), K = (c, r) => r * GC + c;
+  const rows = rg.f() < 0.5 ? [[offs[0], offs[1]], [offs[3], offs[2]]] : [[offs[0], offs[2]], [offs[3], offs[1]]];
+  if (rg.f() < 0.5) rows.reverse();
+  rows.forEach(r => { if (rg.f() < 0.5) r.reverse(); });
+  placeRow(rows[0], rg.i(1, 2), rg);
+  const b1 = Math.max(rows[0][0].ty, rows[0][1].ty) + 13;
+  placeRow(rows[1], rg.i(b1 + 2, Math.max(b1 + 2, 22)), rg);
+  offs.forEach((o, oi) => {
+    o.x = o.tx * TS; o.y = GY + o.ty * TS; o.w = o.tw * TS; o.h = o.th * TS; o.deskY = o.y + 58; o.podY = o.y + 46;
+    for (let r = o.ty; r < o.ty + o.th; r++) for (let c = o.tx; c < o.tx + o.tw; c++) own[r][c] = oi;
+    if (o.agents) o.agents.forEach(a => { a.dx = o.x + a.rel; });
+    if (o.visitor) o.visitor.slotDx = o.x + o.visitor.rel;
+    o.doorTile = [Math.floor((o.x + o.door + 5) / TS), o.ty - 1];
+    reserved.add(K(o.doorTile[0], o.ty - 1)); reserved.add(K(o.doorTile[0], o.ty - 2));
+  });
+  const free = (c, r, oi) => {
+    if (c < 0 || r < 0 || c >= GC || r >= GR || own[r][c] !== -1 || reserved.has(K(c, r))) return false;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const cc = c + dc, rr = r + dr;
+      if (cc >= 0 && rr >= 0 && cc < GC && rr < GR && own[rr][cc] !== -1 && own[rr][cc] !== oi) return false;
+    }
+    return true;
+  };
+  const cx = { own, free, rg };
+  for (const oi of shuffle([0, 1, 2, 3], rg)) {
+    const o = offs[oi];
+    o.strategy = rg.pick(o.pods ? ['cueva', 'cueva', 'mancha', 'alas'] : ['alas', 'escalera', 'mancha', 'mordida']);
+    GROW[o.strategy](o, oi, cx);
+  }
+  // paths: a plaza, then every door finds its way to the network along a noisy cheapest route
+  const path = new Set(), ptiles = [];
+  const plazaC = [];
+  for (let r = 1; r < GR - 3; r++) for (let c = 1; c < GC - 3; c++) {
+    let ok = true;
+    for (let dr = -1; dr <= 3 && ok; dr++) for (let dc = -1; dc <= 3 && ok; dc++) if (own[r + dr][c + dc] !== -1) ok = false;
+    if (ok) plazaC.push([c, r]);
+  }
+  const plaza = plazaC.length ? rg.pick(plazaC) : [offs[0].doorTile[0], offs[0].doorTile[1]];
+  for (let dr = 0; dr < 3; dr++) for (let dc = 0; dc < 3; dc++) { const k = K(plaza[0] + dc, plaza[1] + dr); if (plazaC.length && !path.has(k)) { path.add(k); ptiles.push(k); } }
+  if (!plazaC.length) { path.add(K(plaza[0], plaza[1])); ptiles.push(K(plaza[0], plaza[1])); }
+  const noise = new Float64Array(GR * GC); for (let i = 0; i < noise.length; i++) noise[i] = rg.f() * 2.5;
+  const route = (sc, sr) => {
+    const N = GR * GC, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N), heap = [];
+    const push = (d, k) => { heap.push([d, k]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; const t = heap[p]; heap[p] = heap[i]; heap[i] = t; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, rr = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (rr < heap.length && heap[rr][0] < heap[m][0]) m = rr; if (m === i) break; const t = heap[m]; heap[m] = heap[i]; heap[i] = t; i = m; } } return top; };
+    const s = K(sc, sr); dist[s] = 0; push(0, s);
+    while (heap.length) {
+      const e = pop(), k = e[1]; if (done[k]) continue; done[k] = 1;
+      if (path.has(k) && k !== s) { const out = []; let q = k; while (q !== -1) { out.push(q); q = prev[q]; } return out.reverse(); }
+      const c = k % GC, r = (k / GC) | 0;
+      for (const d of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const cc = c + d[0], rr = r + d[1];
+        if (cc < 0 || rr < 0 || cc >= GC || rr >= GR || own[rr][cc] !== -1) continue;
+        const kk = K(cc, rr), nd = e[0] + 1 + noise[kk];
+        if (nd < dist[kk]) { dist[kk] = nd; prev[kk] = k; push(nd, kk); }
+      }
+    }
+    return [s];
+  };
+  for (const oi of shuffle([0, 1, 2, 3], rg)) {
+    const dt = offs[oi].doorTile;
+    if (dt[1] < 0) continue;
+    for (const k of route(dt[0], dt[1])) if (!path.has(k)) { path.add(k); ptiles.push(k); }
+  }
+  // trees and bushes keep a tile of grass around paths and buildings
+  const near = (c, r, d) => {
+    for (let dr = -d; dr <= d; dr++) for (let dc = -d; dc <= d; dc++) {
+      const cc = c + dc, rr = r + dr;
+      if (cc < 0 || rr < 0 || cc >= GC || rr >= GR) continue;
+      if (own[rr][cc] !== -1 || path.has(K(cc, rr)) || reserved.has(K(cc, rr))) return true;
+    }
+    return false;
+  };
+  const trees = [], bushes = [];
+  for (let tries = 0, want = rg.i(10, 18); trees.length < want && tries < 500; tries++) {
+    const c = rg.i(0, GC - 2), r = rg.i(2, GR - 1);
+    if (near(c, r, 1) || near(c + 1, r, 1) || near(c, r - 1, 0)) continue;
+    if (trees.some(q => Math.abs(q.c - c) < 3 && Math.abs(q.r - r) < 3)) continue;
+    trees.push({ c, r, kind:rg.i(0, 2), x:c * TS - 3, y:GY + r * TS - 10 });
+  }
+  for (let tries = 0, want = rg.i(10, 20); bushes.length < want && tries < 400; tries++) {
+    const c = rg.i(0, GC - 1), r = rg.i(1, GR - 1);
+    if (near(c, r, 0) || trees.some(q => Math.abs(q.c - c) < 2 && Math.abs(q.r - r) < 2)) continue;
+    bushes.push({ c, r, x:c * TS + rg.i(0, 2), y:GY + r * TS + rg.i(1, 3) });
+  }
+  const outdoor = [];
+  if (guinos) {
+    const popF = Object.keys(POPD).filter(k => POPD[k].place === 'floor');
+    if (popF.length && plazaC.length) { const id = rg.pick(popF), d = POPD[id]; outdoor.push({ id, x:plaza[0] * TS + 12 - (d.w >> 1), y:GY + plaza[1] * TS + 20 - d.h, w:d.w, h:d.h }); }
+    for (let tries = 0, n = rg.i(1, 3); popF.length && n > 0 && tries < 60; tries++) {
+      const c = rg.i(1, GC - 3), r = rg.i(2, GR - 2);
+      if (near(c, r, 1) || near(c + 1, r, 1) || trees.some(q => Math.abs(q.c - c) < 3 && Math.abs(q.r - r) < 3)) continue;
+      const id = rg.pick(popF), d = POPD[id]; outdoor.push({ id, x:c * TS, y:GY + r * TS + 8 - d.h, w:d.w, h:d.h }); n--;
+    }
+  }
+  // finish offices: wall features, decor, build order (flood from the door)
+  const reveal = [];
+  shuffle([0, 1, 2, 3], rg).forEach((oi, k) => {
+    const o = offs[oi];
+    planWall(o, rg, guinos); placeDecor(o, oi, own, rg, guinos);
+    const start = [o.doorTile[0], o.ty], seen = new Set([K(start[0], start[1])]), q = [start];
+    o.order = [];
+    while (q.length) {
+      const t = q.shift(); o.order.push(t);
+      for (const d of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const c = t[0] + d[0], r = t[1] + d[1], kk = K(c, r);
+        if (c < 0 || r < 0 || c >= GC || r >= GR || own[r][c] !== oi || seen.has(kk)) continue;
+        seen.add(kk); q.push([c, r]);
+      }
+    }
+    o.buildStart = 0.5 + k * 0.45; o.buildDur = 2 + o.order.length * 0.0045; o.doneAt = o.buildStart + o.buildDur + 0.25;
+    o.order.forEach((tl, i) => reveal.push({ x:tl[0] * TS, y:GY + tl[1] * TS, w:TS, h:TS, time:o.buildStart + (i / o.order.length) * o.buildDur }));
+  });
+  const pStart = Math.max.apply(null, offs.map(o => o.doneAt)) - 1.2;
+  ptiles.forEach((k, i) => reveal.push({ x:(k % GC) * TS, y:GY + ((k / GC) | 0) * TS, w:TS, h:TS, time:pStart + i * 0.01 }));
+  trees.forEach(tr => reveal.push({ x:tr.x, y:tr.y, w:14, h:18, time:pStart + rg.f() * 1.8 }));
+  bushes.forEach(b => reveal.push({ x:b.x, y:b.y, w:8, h:6, time:pStart + rg.f() * 1.8 }));
+  const buildEnd = Math.max.apply(null, reveal.map(r => r.time)) + 0.4;
+  return { day, offices:offs, own, path, ptiles, plaza, plazaOk:plazaC.length > 0, trees, bushes, outdoor, reveal, buildEnd,
+           season:SEASONS[day.season], seed:strHash(day.key) };
+}
+
+// ---------- painting the world (once per day) ----------
+function drawFloorPattern(g, kind, x0, y0, w, h) {
+  const x1 = x0 + w, y1 = y0 + h;
+  if (kind === 'parquet') {
+    for (let r = 0, y = y0; y < y1; r++, y += 4) {
+      for (let x = x0 - (r % 2) * 8; x < x1; x += 16) { R(g, x, y, 16, 4, (((x - x0 + 16) >> 4) + r) % 3 === 0 ? '#ad7f55' : '#b98a5e'); R(g, x, y, 1, 4, '#8f6542'); }
+      R(g, x0, y + 3, w, 1, '#9c7049');
+    }
+  } else if (kind === 'carpet') {
+    R(g, x0, y0, w, h, '#45557a');
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if ((x * 3 + y * 5) % 7 === 0) R(g, x, y, 1, 1, '#52648c');
+  } else if (kind === 'server') {
+    R(g, x0, y0, w, h, '#2b3038');
+    for (let x = x0; x < x1; x += 8) R(g, x, y0, 1, h, '#232830');
+    for (let y = y0; y < y1; y += 8) R(g, x0, y, w, 1, '#232830');
+  } else {
+    R(g, x0, y0, w, h, '#cfd6dd');
+    for (let x = x0; x < x1; x += 10) R(g, x, y0, 1, h, '#bcc4cc');
+    for (let y = y0; y < y1; y += 10) R(g, x0, y, w, 1, '#bcc4cc');
+  }
+}
+function drawWall(g, o) {
+  R(g, o.x, o.y, o.w, 16, o.wall);
+  if (o.floor === 'parquet') {
+    R(g, o.x, o.y + 11, o.w, 4, '#cdb894');
+    for (const rx of o.windows) {
+      const wx = o.x + rx;
+      R(g, wx, o.y + 2, 22, 10, '#8a6a48'); R(g, wx + 1, o.y + 3, 20, 8, '#9ad7ff');
+      R(g, wx + 10, o.y + 3, 1, 8, '#8a6a48'); R(g, wx + 4, o.y + 5, 4, 1, '#ffffff'); R(g, wx + 3, o.y + 6, 6, 1, '#ffffff');
+    }
+  } else if (o.floor === 'carpet') {
+    if (o.poster != null) { const px = o.x + o.poster; R(g, px, o.y + 3, 12, 9, OL); R(g, px + 1, o.y + 4, 10, 7, '#e5533d'); R(g, px + 3, o.y + 6, 6, 3, '#ffd23f'); }
+  } else if (o.floor === 'server') {
+    R(g, o.x, o.y + 12, o.w, 2, '#2a2f38'); for (let x = o.x + 4; x < o.x + o.w; x += 9) R(g, x, o.y + 12, 3, 2, '#e5533d');
+  } else {
+    R(g, o.x, o.y + 13, o.w, 1, '#58e1f0');
+    if (o.poster != null) { const px = o.x + o.poster; R(g, px, o.y + 3, 9, 8, '#f2c14e'); R(g, px + 4, o.y + 4, 1, 4, OL); R(g, px + 4, o.y + 9, 1, 1, OL); }
+  }
+  R(g, o.x, o.y + 15, o.w, 1, 'rgba(0,0,0,0.35)');
+  const lw = txtW(o.name + ' · ' + o.kind) + 6;
+  R(g, o.x + 5, o.y + 3, lw, 9, OL); R(g, o.x + 6, o.y + 4, lw - 2, 7, '#2a2236');
+  txt(g, o.name, o.x + 8, o.y + 5, '#ffe9a8');
+  txt(g, ' · ' + o.kind, o.x + 8 + txtW(o.name) + 1, o.y + 5, '#8be9fd');
+}
+function drawRack(g, x, y) {
+  R(g, x, y, 12, 28, '#1b1e24'); R(g, x, y, 12, 1, '#3a404c');
+  for (let i = 0; i < 6; i++) R(g, x + 1, y + 2 + i * 4, 10, 3, '#2f3540');
+}
+function drawCooler(g, x, y) {
+  R(g, x + 1, y, 5, 6, '#8fd3ff'); R(g, x + 2, y + 1, 1, 4, '#c9ecff'); R(g, x, y + 6, 7, 1, '#9aa0aa');
+  R(g, x, y + 7, 7, 10, '#e8e8ee'); R(g, x + 6, y + 7, 1, 10, '#b9bcc6'); R(g, x + 2, y + 9, 2, 1, '#3b7dd8');
+}
+function drawPlant(g, x, y) {
+  R(g, x + 1, y + 7, 6, 5, '#a0522d'); R(g, x + 1, y + 7, 6, 1, '#c0703d');
+  const L = '#4c8a3f', L2 = '#6fb35a';
+  R(g, x + 3, y, 2, 7, L); R(g, x, y + 2, 3, 2, L2); R(g, x + 5, y + 1, 3, 2, L2); R(g, x + 1, y + 4, 2, 2, L); R(g, x + 5, y + 4, 2, 2, L);
+}
+function drawSofa(g, x, y) {
+  R(g, x, y, 30, 5, '#7a3b4f'); R(g, x, y + 5, 30, 4, '#8f4a60'); R(g, x - 2, y + 3, 3, 7, '#6e3a4c'); R(g, x + 29, y + 3, 3, 7, '#6e3a4c');
+  R(g, x + 1, y + 10, 2, 1, OL); R(g, x + 27, y + 10, 2, 1, OL);
+}
+function drawDeco(g, d, t) {
+  const x = d.x, y = d.y;
+  if (d.id === 'plant') drawPlant(g, x, y);
+  else if (d.id === 'sofa') drawSofa(g, x + 2, y);
+  else if (d.id === 'cooler') { drawCooler(g, x, y); const q = (t % 3) / 3; if (q < 0.5) R(g, x + 3, y + 4 - Math.round(q * 8), 1, 1, '#ffffff'); }
+  else if (d.id === 'table') {
+    R(g, x, y + 2, 16, 3, '#8a6a48'); R(g, x, y + 2, 16, 1, '#a8845e'); R(g, x + 1, y + 5, 2, 5, '#5a3d28'); R(g, x + 13, y + 5, 2, 5, '#5a3d28');
+    R(g, x + 4, y, 3, 2, '#e8e8ee'); R(g, x + 9, y + 1, 5, 1, '#3b7dd8');
+  } else if (d.id === 'shelf') {
+    R(g, x, y, 12, 16, '#6b4329'); R(g, x + 1, y + 1, 10, 14, '#3e2616'); R(g, x + 1, y + 5, 10, 1, '#6b4329'); R(g, x + 1, y + 10, 10, 1, '#6b4329');
+    const bc = ['#e5533d', '#3b7dd8', '#f2c14e', '#4cc38a', '#9b5de5'];
+    for (let s = 0; s < 3; s++) for (let b = 0; b < 4; b++) { const h = 2 + (hash(x * 7 + s * 5 + b) % 2); R(g, x + 2 + b * 2, y + 5 * s + 5 - h, 1, h, bc[(s + b + x) % bc.length]); }
+  } else if (d.id === 'lamp') {
+    R(g, x + 1, y + 14, 3, 2, '#3a3346'); R(g, x + 2, y + 5, 1, 9, '#3a3346'); R(g, x, y + 1, 5, 4, '#f2c14e'); R(g, x + 1, y, 3, 1, '#f2c14e');
+    g.globalAlpha = 0.25; R(g, x - 1, y + 5, 7, 2, '#fff1a8'); g.globalAlpha = 1;
+  } else if (POPD[d.id]) {
+    const s = POPD[d.id], fr = s.fps ? s.frames[Math.floor(t * s.fps) % s.frames.length] : s.frames[0];
+    spr(g, fr, x, y, s.pal, false);
+  }
+}
+const TREE = [[5,4],[3,8],[2,10],[1,12],[1,12],[0,14],[0,14],[1,12],[1,12],[2,10],[4,6]];
+function drawTree(g, tr, S) {
+  const x = tr.x, y = tr.y;
+  R(g, x + 3, y + 16, 9, 2, 'rgba(0,0,0,0.25)');
+  R(g, x + 5, y + 10, 4, 7, '#6b4329'); R(g, x + 5, y + 10, 1, 7, '#8a5a3a');
+  if (tr.kind === 1) {
+    for (let r = 0; r < 12; r++) { const half = 1 + Math.floor((r % 4) + r / 2); R(g, x + 7 - half, y + r - 1, half * 2, 1, r % 4 === 3 ? S.cd : '#2f6a3a'); }
+    if (S === SEASONS.invierno) for (let r = 0; r < 12; r += 4) R(g, x + 6 - Math.floor(r / 2), y + r - 1, 2 + r, 1, '#ffffff');
+    return;
+  }
+  TREE.forEach((q, r) => {
+    R(g, x + q[0], y + r, q[1], 1, tr.kind === 2 && S !== SEASONS.invierno ? '#b5482a' : S.c);
+    R(g, x + q[0] + q[1] - 2, y + r, 2, 1, S.cd);
+    if (r < 5) R(g, x + q[0] + 1, y + r, 2, 1, S.ch);
+  });
+}
+function drawWorld(w, guinos) {
+  const S = w.season;
+  const mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
+  const terrain = mk(), full = mk(), tg = terrain.getContext('2d'), g = full.getContext('2d');
+  R(tg, 0, 0, W, H, '#14111b');
+  R(tg, 0, GY, W, H - GY, S.g);
+  for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) {
+    const h = hash(w.seed + r * 977 + c * 131);
+    for (let k = 0; k < 4; k++) R(tg, c * TS + (h >> (k * 3)) % 8, GY + r * TS + (h >> (k * 3 + 12)) % 8, 1, 1, k % 2 ? S.d : S.l);
+    if (h % 9 === 0) { const fc = S.fl[(h >> 5) % S.fl.length]; R(tg, c * TS + (h >> 8) % 7, GY + r * TS + (h >> 11) % 7, 1, 1, fc); R(tg, c * TS + (h >> 14) % 7, GY + r * TS + (h >> 17) % 7, 1, 1, fc); }
+  }
+  g.drawImage(terrain, 0, 0);
+  const isP = (c, r) => c >= 0 && r >= 0 && c < GC && r < GR && w.path.has(r * GC + c);
+  const plazaT = new Set(); if (w.plazaOk) for (let dr = 0; dr < 3; dr++) for (let dc = 0; dc < 3; dc++) plazaT.add((w.plaza[1] + dr) * GC + w.plaza[0] + dc);
+  w.path.forEach(k => {
+    const c = k % GC, r = (k / GC) | 0, x = c * TS, y = GY + r * TS, h = hash(k * 31 + w.seed);
+    if (plazaT.has(k)) { R(g, x, y, 8, 8, '#b9b2a6'); R(g, x, y, 8, 1, '#a39c90'); R(g, x, y, 1, 8, '#a39c90'); R(g, x + 3 + h % 3, y + 3, 1, 1, '#d6d0c4'); return; }
+    R(g, x, y, 8, 8, S === SEASONS.invierno ? '#b8b0a2' : '#c8b48a');
+    if (!isP(c, r - 1)) R(g, x, y, 8, 1, '#a8946a');
+    if (!isP(c, r + 1)) R(g, x, y + 7, 8, 1, '#a8946a');
+    if (!isP(c - 1, r)) R(g, x, y, 1, 8, '#a8946a');
+    if (!isP(c + 1, r)) R(g, x + 7, y, 1, 8, '#a8946a');
+    R(g, x + 1 + h % 5, y + 2 + (h >> 4) % 4, 1, 1, '#b5a078'); R(g, x + 2 + (h >> 7) % 4, y + 1 + (h >> 10) % 5, 1, 1, '#d8c8a0');
+  });
+  w.offices.forEach((o, oi) => {
+    const mine = (c, r) => c >= 0 && r >= 0 && c < GC && r < GR && w.own[r][c] === oi;
+    const tiles = []; for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) if (w.own[r][c] === oi) tiles.push([c, r]);
+    tiles.forEach(q => { const x = q[0] * TS, y = GY + q[1] * TS; if (!mine(q[0], q[1] + 1)) R(g, x + 2, y + 8, 8, 3, 'rgba(0,0,0,0.28)'); if (!mine(q[0] + 1, q[1])) R(g, x + 8, y + 3, 2, 8, 'rgba(0,0,0,0.28)'); });
+    let x0 = W, y0 = H, x1 = 0, y1 = 0;
+    tiles.forEach(q => { x0 = Math.min(x0, q[0] * TS); y0 = Math.min(y0, GY + q[1] * TS); x1 = Math.max(x1, q[0] * TS + TS); y1 = Math.max(y1, GY + q[1] * TS + TS); });
+    g.save(); g.beginPath(); tiles.forEach(q => g.rect(q[0] * TS, GY + q[1] * TS, TS, TS)); g.clip();
+    drawFloorPattern(g, o.floor, x0, y0, x1 - x0, y1 - y0);
+    g.restore();
+    drawWall(g, o);
+    tiles.forEach(q => {
+      const x = q[0] * TS, y = GY + q[1] * TS, hall = q[0] >= o.tx && q[0] < o.tx + o.tw && q[1] < o.ty + 2 && q[1] >= o.ty;
+      if (!hall && !mine(q[0], q[1] - 1)) { R(g, x, y, 8, 7, o.wall); R(g, x, y + 6, 8, 1, 'rgba(0,0,0,0.35)'); }
+      if (o.floor === 'lab' && !mine(q[0], q[1] + 1)) for (let rr = 5; rr < 8; rr++) for (let xx = 0; xx < 8; xx++) R(g, x + xx, y + rr, 1, 1, ((x + xx + rr) >> 2) & 1 ? '#f2c14e' : OL);
+    });
+    tiles.forEach(q => {
+      const x = q[0] * TS, y = GY + q[1] * TS;
+      if (!mine(q[0], q[1] - 1)) R(g, x, y, 8, 1, '#05030a');
+      if (!mine(q[0], q[1] + 1)) R(g, x, y + 7, 8, 1, '#05030a');
+      if (!mine(q[0] - 1, q[1])) R(g, x, y, 1, 8, '#05030a');
+      if (!mine(q[0] + 1, q[1])) R(g, x + 7, y, 1, 8, '#05030a');
+    });
+    for (let i = 0; i < o.racks; i++) drawRack(g, o.x + 6 + i * 16, o.y + 20);
+    if (o.pods) { R(g, o.x + 184, o.podY - 4, 46, 44, '#1f2a33'); R(g, o.x + 184, o.podY - 4, 46, 1, '#58e1f0'); R(g, o.x + 184, o.podY + 39, 46, 1, '#0f151a'); }
+    const gx = o.x + o.w - 24;
+    R(g, gx + 1, o.y + 57, 9, 2, '#3a3346');
+    R(g, gx - 2, o.y + 81, 19, 3, '#3a3346'); R(g, gx - 2, o.y + 81, 19, 1, '#4d4459');
+    txt(g, 'CARGA', gx - 3, o.y + 19, '#8a8399');
+  });
+  w.bushes.forEach(b => { R(g, b.x, b.y + 1, 8, 4, S.cd); R(g, b.x + 1, b.y, 6, 4, S.c); R(g, b.x + 2, b.y, 2, 1, S.ch); R(g, b.x + 1, b.y + 5, 6, 1, 'rgba(0,0,0,0.25)'); });
+  w.trees.slice().sort((a, b) => a.y - b.y).forEach(tr => drawTree(g, tr, S));
+  w.terrain = terrain; w.full = full;
+}
+function drawConstruction(g, w) {
+  g.drawImage(w.terrain, 0, 0);
+  const tb = w.tb;
+  for (const rv of w.reveal) {
+    if (rv.time > tb) continue;
+    g.drawImage(w.full, rv.x, rv.y, rv.w, rv.h, rv.x, rv.y, rv.w, rv.h);
+    const a = tb - rv.time;
+    if (a < 0.15) {
+      g.globalAlpha = 1 - a / 0.15;
+      R(g, rv.x, rv.y, rv.w, 1, '#ffffff'); R(g, rv.x, rv.y + rv.h - 1, rv.w, 1, '#ffffff'); R(g, rv.x, rv.y, 1, rv.h, '#ffffff'); R(g, rv.x + rv.w - 1, rv.y, 1, rv.h, '#ffffff');
+      g.globalAlpha = 1;
+    }
+  }
+}
+function drawBuilder(g, x, y, p, t) {
+  x = Math.round(x); y = Math.round(y);
+  const up = Math.floor(t * 10) % 2;
+  drawChar(g, x, y, p, { view:'F', legs:up ? 0 : 1, hair:0, acc:'builder' });
+  const hx = x + 9;
+  if (up) { R(g, hx, y + 4, 1, 5, '#8a5a3a'); R(g, hx - 1, y + 2, 3, 2, '#8f96a3'); }
+  else { R(g, hx, y + 9, 3, 1, '#8a5a3a'); R(g, hx + 2, y + 9, 2, 3, '#8f96a3'); R(g, hx + 4, y + 12, 1, 1, '#ffd23f'); R(g, hx + 3, y + 13, 1, 1, '#fff6c9'); R(g, hx + 5, y + 11, 1, 1, '#fff6c9'); }
+}
+function drawBuilders(g, w, t) {
+  const tb = w.tb;
+  w.offices.forEach((o, oi) => {
+    const s = o.buildStart, D = o.buildDur, N = o.order.length;
+    if (tb < s - 0.3 || tb > s + D + 0.6) return;
+    for (let b = 0; b < 2; b++) {
+      const fi = Math.max(0, Math.min(N - 1, (tb - s) / D * N));
+      let i = Math.floor(fi); if (i % 2 !== b) i = Math.max(0, i - 1);
+      const j = Math.min(N - 1, i + 2), f = Math.max(0, Math.min(1, (fi - i) / 2));
+      const A = o.order[i], B = o.order[j];
+      const x = A[0] * TS + 4 + (B[0] - A[0]) * TS * f - 5, y = GY + A[1] * TS + 4 + (B[1] - A[1]) * TS * f - 13;
+      const p = palFor('builder', 30 + oi * 2 + b);
+      if (tb < s) { drawPoof(g, x + 5, y + 8, (tb - s + 0.3) / 0.3); continue; }
+      if (tb > s + D) { const q = (tb - s - D) / 0.6; if (q < 0.5) drawBuilder(g, x, y, p, t + b * 0.3); drawPoof(g, x + 5, y + 8, q); continue; }
+      drawBuilder(g, x, y, p, t + b * 0.3);
+    }
+  });
+}
+
+// ---------- gags & emojis ----------
+function gagNow(t, opt, cand) {
+  const ids = Object.keys(POPG);
+  if (opt.gag === 'ninguno' || !ids.length || !cand.length) return null;
+  const F = Math.max(2, opt.freq || 6), k = Math.floor(t / F), lt = t - k * F;
+  const id = POPG[opt.gag] ? opt.gag : ids[hash(k * 7 + 3) % ids.length], gg = POPG[id];
+  if (lt > gg.dur) return null;
+  return { agent:cand[hash(k * 13 + 1) % cand.length], id, p:lt / gg.dur };
+}
+function emojiNow(t, opt, cand) {
+  const ids = Object.keys(POPE);
+  if (!opt.emojis || !ids.length || !cand.length) return null;
+  const F = Math.max(2, (opt.freq || 6) * 0.6), tt = t + F * 0.5, k = Math.floor(tt / F), lt = tt - k * F, dur = 1.6;
+  if (lt > dur) return null;
+  return { agent:cand[hash(k * 29 + 5) % cand.length], id:ids[hash(k * 3 + 11) % ids.length], p:lt / dur };
+}
+function drawEmojiThrow(g, cx, cy, id, p, t) {
+  const e = POPE[id]; if (!e) return;
+  const fr = e.fps ? e.frames[Math.floor(t * e.fps) % e.frames.length] : e.frames[0];
+  if (p > 0.7) g.globalAlpha = Math.max(0, (1 - p) / 0.3);
+  spr(g, fr, Math.round(cx + 1 + p * 8), Math.round(cy - 6 - Math.sin(p * Math.PI) * 12 - p * 4), e.pal, false);
+  g.globalAlpha = 1;
+}
+function seatExtras(a, gag, emo, p) {
+  const ex = {};
+  if (gag && gag.agent === a && POPG[gag.id].pose) { try { Object.assign(ex, POPG[gag.id].pose(gag.p) || {}); } catch (e) {} }
+  if (emo && emo.agent === a && emo.p < 0.2) ex.arms = 'up';
+  return ex;
+}
+function drawSeatFx(g, a, o, gag, emo, t) {
+  const cx = a.dx + 2, cy = o.deskY - 10;
+  if (gag && gag.agent === a) { try { POPG[gag.id].draw(g, cx, cy, gag.p, t); } catch (e) {} }
+  if (emo && emo.agent === a) drawEmojiThrow(g, cx, cy, emo.id, emo.p, t);
+}
+
+const POD_CYCLE = [['empty', 3], ['beamIn', 1], ['matIn', 1.8], ['run', 12], ['matOut', 1.8], ['beamOut', 0.8], ['empty', 2]];
+// -> [state, fx]
+function podState(pod, opt, t) {
+  if (opt.kindling !== 'mixto') return [{ normal:'run', incendio:'fire', congelado:'frozen', muerto:'dead' }[opt.kindling] || pod.st, {}];
+  if (!pod.cycle) return [pod.st, {}];
+  const T = segTotal(POD_CYCLE), ph = phaseAt(POD_CYCLE, (t + 4) % T);
+  if (ph.name === 'beamIn') return ['empty', { beam:ph.p }];
+  if (ph.name === 'beamOut') return ['empty', { beam:1 - ph.p }];
+  if (ph.name === 'matIn') return ['run', { mat:ph.p }];
+  if (ph.name === 'matOut') return ['run', { mat:1 - ph.p }];
+  return [ph.name, {}];
+}
+function zoneRect(o, z, extraDx) {
+  const xs = z.ids.map(i => o.agents[i].dx).concat(extraDx != null ? [extraDx] : []);
+  const rx = Math.min.apply(null, xs) - 5;
+  return { rx, rw:Math.max.apply(null, xs) + 29 - rx, ry:o.deskY - 26 };
+}
+const POOF = [['none', 3], ['poofIn', 0.7], ['minis', 9], ['poofOut', 0.7], ['none', 4.6]];
+function convoState(o, t) {
+  if (!o.convos || !o.convos.length) return null;
+  const P = 16, k = Math.floor((t + o.x * 0.05) / P), lt = (t + o.x * 0.05) - k * P;
+  const pair = o.convos[k % o.convos.length], A = o.agents[pair[0]], B = o.agents[pair[1]];
+  const ax = A.dx + 3, bx = B.dx + 3, wt = Math.abs(bx - ax) / 22, talk = 4.5;
+  const dir = bx > ax ? 1 : -1;
+  if (lt < 0.4) return { A, B, phase:'stand', x:ax };
+  if (lt < 0.4 + wt) return { A, B, phase:'walk', x:ax + (bx - ax) * ((lt - 0.4) / wt), dir };
+  if (lt < 0.4 + wt + talk) return { A, B, phase:'talk', x:bx, lt:lt - 0.4 - wt };
+  if (lt < 0.4 + 2 * wt + talk) return { A, B, phase:'walk', x:bx + (ax - bx) * ((lt - 0.4 - wt - talk) / wt), dir:-dir };
+  return null;
+}
+
+function drawDynamic(g, t, opt, w) {
+  const tb = w.tb, offices = w.offices;
+  R(g, 0, 0, W, GY, '#14111b');
+  for (let x = 0; x < W; x += 2) R(g, x, GY - 1, 1, 1, '#2a2236');
+  txt(g, 'PIXELAGENTS', 8, 6, '#ffe9a8', 2);
+  let lx = 106;
+  ['personal', 'work', 'plus'].forEach((acc, i) => {
+    drawChar(g, lx, 6, palFor(acc, i * 5 + 2), { view:'F', face:((t + i) % 3) < 0.12 ? 'blink' : null, legs:null, hair:acc === 'plus' ? 1 : i, acc });
+    txt(g, ACC[acc].name, lx + 13, 11, ACC[acc].B);
+    lx += 14 + txtW(ACC[acc].name) + 8;
+  });
+  txt(g, w.day.label, lx + 6, 11, '#b3abc4');
+  let total = 0;
+  offices.forEach((o, oi) => { o.now = o.spend + Math.floor((t + oi * 0.7) / 2.2) * 0.07; total += o.now; });
+  const tt = 'HOY $' + total.toFixed(2);
+  coin(g, W - 14 - txtW(tt), 8); txt(g, tt, W - 8 - txtW(tt), 9, '#f5c542');
+
+  if (tb >= w.buildEnd) w.outdoor.forEach(d => drawDeco(g, d, t));
+  const cand = [];
+  offices.forEach(o => { if (o.agents && tb >= o.doneAt) o.agents.forEach(a => { if (a.st !== 'sleep') cand.push(a); }); });
+  const gag = gagNow(t, opt, cand), emo = emojiNow(t, opt, cand);
+  const counts = { run:0, fire:0, frozen:0, dead:0 };
+
+  offices.forEach((o, oi) => {
+    if (tb < o.doneAt) return;
+    const fresh = tb - o.doneAt;
+    o.wallDeco.forEach(d => drawDeco(g, d, t));
+    o.decor.forEach(d => drawDeco(g, d, t));
+    if (o.agents) {
+      const cv = convoState(o, t), v = o.visitor, vs = v ? visitorState(o, v, t) : null;
+      o.zones.forEach(z => {
+        const r = zoneRect(o, z, null), zi = o.zones.indexOf(z);
+        let rw = r.rw;
+        if (vs && v.zone === zi) rw += Math.round((zoneRect(o, z, v.slotDx).rw - r.rw) * Math.min(1, vs.desk * 1.5));
+        drawRug(g, r.rx, r.ry, rw, RUGS[strHash(z.repo) % RUGS.length], z.repo, 1);
+      });
+      if (vs && v.newZone && vs.rug > 0) drawRug(g, v.slotDx - 5, o.deskY - 26, 34, RUGS[strHash(v.newZone) % RUGS.length], v.newZone, vs.rug);
+      drawDoor(g, o.x + o.door, o.y, vs ? vs.door : false, vs ? vs.ding : 0);
+      o.agents.forEach(a => drawChair(g, a.dx + 2, o.deskY));
+      if (vs && vs.desk > 0.3) drawChair(g, v.slotDx + 2, o.deskY);
+      const vp = v ? palFor(v.acc, v.seed) : null, item = v ? ITEM[v.acc] : null;
+      if (vs && vs.walker) {
+        const wk = vs.walker;
+        if (wk.alpha != null) g.globalAlpha = Math.max(0, wk.alpha);
+        drawChar(g, wk.x, wk.y, vp, { view:wk.view, flip:wk.flip, legs:wk.legs, hair:v.hair, acc:v.acc, hand:wk.hand });
+        drawItem(g, wk.x, wk.y, item, wk.view, wk.flip, wk.hand, t);
+        g.globalAlpha = 1;
+      }
+      o.agents.forEach(a => drawDesk(g, a.dx, o.deskY));
+      if (vs) drawDeskBuilt(g, v.slotDx, o.deskY, vs.desk, t, v.seed);
+      const greet = vs && vs.ph.name === 'greet' ? vs.ph.tin : -1;
+      const neighbours = vs && v.zone != null ? o.zones[v.zone].ids : [];
+      o.agents.forEach((a, ai) => {
+        if (cv && cv.A === a && cv.phase !== 'stand') { drawMonitor(g, a.dx + 13, o.deskY - 9, 'off', t, a.seed); return; }
+        if (cv && cv.A === a) return;
+        const talking = cv && cv.B === a && cv.phase === 'talk';
+        const speaking = talking && Math.floor(cv.lt / 0.9) % 2 === 1;
+        const ex = seatExtras(a, gag, emo);
+        if (greet > 1.2 && neighbours.indexOf(ai) >= 0) { ex.say = 'HOLA'; ex.wave = true; }
+        drawSeat(g, a.dx, o.deskY, a, talking ? 'talk' : a.st, t, speaking, ex);
+        drawSeatFx(g, a, o, gag, emo, t);
+        if (a.minis) drawMinis(g, a.dx + 1, o.deskY + 14, a, a.minis, t);
+        if (a.poof) {
+          const ph = phaseAt(POOF, (t + oi * 3) % segTotal(POOF)), mx = a.dx + 1, my = o.deskY + 14;
+          const show = ph.name === 'minis' || (ph.name === 'poofIn' && ph.p > 0.5) || (ph.name === 'poofOut' && ph.p < 0.5);
+          if (show) drawMinis(g, mx, my, a, a.poof, t);
+          if (ph.name === 'poofIn' || ph.name === 'poofOut') for (let i = 0; i < a.poof; i++) drawPoof(g, mx + i * 8 + 3, my + 4, ph.p);
+        }
+      });
+      if (vs && vs.seated) {
+        const n = vs.ph.name, ex = { item };
+        if (n === 'greet' && vs.ph.tin < 1.4) ex.say = 'HOLA';
+        if (n === 'wave') { ex.say = 'CHAO'; ex.wave = true; }
+        drawSeat(g, v.slotDx, o.deskY, v, 'work', t, false, ex);
+      } else if (vs && vs.desk >= 1) drawMonitor(g, v.slotDx + 13, o.deskY - 9, 'off', t, v.seed);
+      if (cv) {
+        const a = cv.A, p = palFor(a.acc, a.seed), wy = o.deskY + 8;
+        R(g, Math.round(cv.x) + 2, wy + 14, 7, 1, 'rgba(0,0,0,0.3)');
+        if (cv.phase === 'walk') {
+          const f = [1, 0, 2, 0][Math.floor(t * 8) % 4];
+          drawChar(g, cv.x, wy, p, { view:'S', flip:cv.dir < 0, legs:f, hair:a.hair, acc:a.acc, hand:f === 1 ? 1 : 0 });
+        } else {
+          const speaking = cv.phase === 'talk' && Math.floor(cv.lt / 0.9) % 2 === 0;
+          drawChar(g, cv.x, wy, p, { view:'F', face:speaking && Math.floor(t * 8) % 2 ? 'talk' : null, legs:0, hair:a.hair, acc:a.acc });
+          if (speaking) talkBubble(g, Math.round(cv.x) + 7, wy - 8, t + 3);
+        }
+      }
+      if (fresh < 0.6) o.agents.forEach(a => drawPoof(g, a.dx + 12, o.deskY - 2, fresh / 0.6));
+    } else {
+      drawDoor(g, o.x + o.door, o.y, false, 0);
+    }
+    for (let i = 0; i < o.racks; i++) for (let j = 0; j < 6; j++) {
+      const rx = o.x + 6 + i * 16, ry = o.y + 23 + j * 4, on = hash(i * 13 + j * 7 + Math.floor(t * 3)) % 3 !== 0;
+      R(g, rx + 2, ry, 1, 1, on ? (j % 3 ? '#5dff9b' : '#ffb84d') : '#1b3a26');
+      R(g, rx + 4, ry, 1, 1, hash(i + j * 5 + Math.floor(t * 5)) % 2 ? '#5dff9b' : '#1b3a26');
+    }
+    if (o.pods) {
+      o.pods.forEach((pod, i) => {
+        const ps = podState(pod, opt, t), st = ps[0], px = o.x + 10 + i * 30;
+        if (counts[st] != null) counts[st]++;
+        drawPod(g, px, o.podY, pod, st, t, ps[1]);
+        txt(g, pod.name, px + Math.round((22 - txtW(pod.name)) / 2), o.podY + 33, '#cfd6de');
+        if (fresh < 0.6) drawPoof(g, px + 11, o.podY + 14, fresh / 0.6);
+      });
+      txt(g, 'MICROVMS', o.x + 188, o.podY, '#58e1f0');
+      [['VIVAS', counts.run, '#5dff9b'], ['FUEGO', counts.fire, '#ff9a5c'], ['HIELO', counts.frozen, '#9fdcff'], ['RIP', counts.dead, '#a9aeb7']]
+        .forEach((r, i) => { R(g, o.x + 188, o.podY + 9 + i * 7, 3, 3, r[2]); txt(g, r[0] + ' ' + r[1], o.x + 194, o.podY + 8 + i * 7, '#e6e2ee'); });
+      txt(g, STRAT_NAME[o.strategy] || '', o.x + 188, o.podY + 36, '#5b7080');
+    }
+    const gx = o.x + o.w - 24, lvl = Math.max(1, Math.min(99, Math.round(o.load + Math.sin(t * 0.7 + oi) * 4)));
+    drawThermo(g, gx + 4, o.y + 26, lvl);
+    if (lvl >= 80) for (let i = 0; i < 2; i++) { const q = (t + i * 0.5) % 1; g.globalAlpha = 1 - q; R(g, gx + 6 + i * 2, o.y + 24 - Math.round(q * 6), 1, 1, '#ffffff'); g.globalAlpha = 1; }
+    txt(g, lvl + '%', gx + 6 - Math.round(txtW(lvl + '%') / 2), o.y + 61, lvl < 50 ? '#4cc38a' : lvl < 80 ? '#f2c14e' : '#e5533d');
+    drawPig(g, gx, o.y + 72, t, oi * 0.7);
+    const s = '$' + o.now.toFixed(2);
+    txt(g, s, gx + 7 - Math.round(txtW(s) / 2), o.y + 87, '#f5c542');
+    if (fresh < 0.6) drawPoof(g, gx + 6, o.y + 50, fresh / 0.6);
+  });
+  if (tb < w.buildEnd) drawBuilders(g, w, t);
+}
+
+// ---------- character sheet ----------
+function drawSheet(g, t, opt) {
+  R(g, 0, 0, SW, SH, '#1c1726');
+  const cols = ['TRABAJA', 'PIENSA', 'ESPERA', 'DUERME', 'CAMINA', 'HABLA', 'SUBAGENTES'];
+  cols.forEach((c, i) => txt(g, c, 70 + i * 58 + 12 - Math.round(txtW(c) / 2), 4, '#8a8399'));
+  for (let x = 4; x < SW - 4; x += 2) R(g, x, 12, 1, 1, '#2a2236');
+  ['personal', 'work', 'plus'].forEach((acc, r) => {
+    const y = 18 + r * 38, seed = r * 5 + 2, ag = { acc, seed, hair:acc === 'plus' ? 1 : r };
+    const p = palFor(acc, seed);
+    txt(g, ACC[acc].name, 6, y + 10, ACC[acc].B); txt(g, ACC[acc].tag, 6, y + 18, '#8a8399');
+    const dy = y + 24;
+    ['work', 'think', 'wait', 'sleep'].forEach((st, i) => {
+      const dx = 70 + i * 58;
+      drawChair(g, dx + 2, dy); drawDesk(g, dx, dy); drawSeat(g, dx, dy, ag, st, t + i, false);
+    });
+    const wx = 70 + 4 * 58 + 7, f = [1, 0, 2, 0][Math.floor(t * 8) % 4];
+    R(g, wx + 2, y + 24, 7, 1, 'rgba(0,0,0,0.3)');
+    drawChar(g, wx, y + 10, p, { view:'S', legs:f, hair:ag.hair, acc, hand:f === 1 ? 1 : 0 });
+    drawItem(g, wx, y + 10, ITEM[acc], 'S', false, f === 1 ? 1 : 0, t);
+    const hx = 70 + 5 * 58, turn = Math.floor(t / 0.9) % 2;
+    const p2 = palFor(acc, seed + 1);
+    drawChar(g, hx, y + 10, p, { view:'F', face:turn === 0 && Math.floor(t * 8) % 2 ? 'talk' : null, legs:0, hair:ag.hair, acc });
+    drawChar(g, hx + 13, y + 10, p2, { view:'F', face:turn === 1 && Math.floor(t * 8) % 2 ? 'talk' : null, legs:0, hair:(ag.hair + 1) % 2, acc });
+    R(g, hx + 2, y + 24, 21, 1, 'rgba(0,0,0,0.3)');
+    talkBubble(g, turn === 0 ? hx + 6 : hx + 19, y + 1, t);
+    const sx = 70 + 6 * 58;
+    drawChair(g, sx + 2, dy); drawDesk(g, sx, dy); drawSeat(g, sx, dy, ag, 'work', t + 2, false);
+    drawMinis(g, sx + 26, dy + 1, ag, 2, t);
+  });
+  const ky = 148;
+  txt(g, 'KINDLING', 6, ky + 10, '#58e1f0'); txt(g, 'MICROVMS', 6, ky + 18, '#8a8399');
+  [['run', 'NORMAL'], ['fire', 'INCENDIO'], ['frozen', 'CONGELADO'], ['dead', 'MUERTO']].forEach((s, i) => {
+    const px = 70 + i * 58 + 1;
+    drawPod(g, px, ky, { acc:['work', 'personal', 'work', 'plus'][i], seed:20 + i, hair:i % 2 }, s[0], t + i);
+    txt(g, s[1], px + 11 - Math.round(txtW(s[1]) / 2), ky + 33, '#cfd6de');
+  });
+  [25, 65, 92].forEach((l, i) => {
+    const x = 316 + i * 26;
+    drawThermo(g, x, ky - 2, l);
+    txt(g, l + '%', x + 2 - Math.round(txtW(l + '%') / 2), ky + 33, l < 50 ? '#4cc38a' : l < 80 ? '#f2c14e' : '#e5533d');
+  });
+  txt(g, 'CARGA', 318, ky - 10, '#8a8399');
+  drawPig(g, 404, ky + 14, t, 0);
+  txt(g, 'GASTO', 402, ky - 10, '#8a8399');
+  txt(g, '$' + (12 + Math.floor(t / 2.2) * 0.07).toFixed(2), 401, ky + 33, '#f5c542');
+  // builders, gags, emojis and pop decor
+  const oy = 198;
+  for (let x = 4; x < SW - 4; x += 2) R(g, x, oy - 4, 1, 1, '#2a2236');
+  txt(g, 'OBRAS', 6, oy + 10, '#ffd23f'); txt(g, 'Y GUINOS', 6, oy + 18, '#8a8399');
+  const placed = Math.floor(t * 3) % 5;
+  for (let i = 0; i < 4; i++) if (i < placed) { drawFloorPattern(g, 'parquet', 64 + i * 8, oy + 26, 8, 8); if (i === placed - 1) { R(g, 64 + i * 8, oy + 26, 8, 1, '#ffffff'); R(g, 64 + i * 8, oy + 33, 8, 1, '#ffffff'); } }
+  drawBuilder(g, 62 + Math.min(3, placed) * 8, oy + 12, palFor('builder', 31), t);
+  const gids = Object.keys(POPG);
+  if (gids.length) {
+    const slot = 2.6, cyc = t % (gids.length * slot), k = Math.floor(cyc / slot), gg = POPG[gids[k]], p = Math.min(1, (cyc - k * slot) / gg.dur);
+    const dx = 122, dy = oy + 36, ag = { acc:['personal', 'work', 'plus'][k % 3], seed:40 + k, hair:k % 2 };
+    let ex = {}; if (gg.pose) { try { ex = gg.pose(p) || {}; } catch (e) {} }
+    drawChair(g, dx + 2, dy); drawDesk(g, dx, dy); drawSeat(g, dx, dy, ag, 'work', t, false, ex);
+    try { gg.draw(g, dx + 2, dy - 10, p, t); } catch (e) {}
+    const nm = plain(gg.name || gids[k]);
+    txt(g, nm, dx + 12 - Math.round(txtW(nm) / 2), dy + 14, '#cfd6de');
+  }
+  let x = 176;
+  for (const id of Object.keys(POPD)) {
+    const d = POPD[id]; if (x + d.w > SW - 4) break;
+    drawDeco(g, { id, x, y:oy + 36 - d.h }, t); x += d.w + 5;
+  }
+  x = 176;
+  for (const id of Object.keys(POPE)) {
+    if (x + 9 > SW - 4) break;
+    const e = POPE[id], fr = e.fps ? e.frames[Math.floor(t * e.fps) % e.frames.length] : e.frames[0];
+    spr(g, fr, x, oy + 42 + (Math.floor(t * 2 + x) % 2), e.pal, false); x += 13;
+  }
+}
+
+function startPixelOffice(mapCv, sheetCv, getOpts) {
+  const g = mapCv.getContext('2d'), s = sheetCv.getContext('2d');
+  g.imageSmoothingEnabled = false; s.imageSmoothingEnabled = false;
+  let last = performance.now(), t = 0, raf = 0, stop = false, world = null, wkey = '';
+  function frame(now) {
+    if (stop) return;
+    const o = getOpts();
+    t += Math.min(0.1, (now - last) / 1000) * (o.speed || 1); last = now;
+    const day = dayInfo(o.dia), key = day.key + (o.guinos ? ':g' : '');
+    if (key !== wkey) { wkey = key; world = buildWorld(day, o.guinos); drawWorld(world, o.guinos); world.t0 = t; }
+    world.tb = t - world.t0;
+    g.clearRect(0, 0, W, H);
+    if (world.tb < world.buildEnd) drawConstruction(g, world); else g.drawImage(world.full, 0, 0);
+    drawDynamic(g, t, o, world);
+    drawSheet(s, t, o);
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+  return () => { stop = true; cancelAnimationFrame(raf); };
+}
+
+class Component extends DCLogic {
+  renderVals() {
+    if (!this._refs) {
+      this._refs = {
+        map: (el) => { if (el) this._map = el; this.boot(); },
+        sheet: (el) => { if (el) this._sheet = el; this.boot(); }
+      };
+    }
+    return { mapRef: this._refs.map, sheetRef: this._refs.sheet };
+  }
+  componentDidMount() {
+    setTimeout(() => {
+      if (!this._map) this._map = document.querySelector('canvas[data-px="map"]');
+      if (!this._sheet) this._sheet = document.querySelector('canvas[data-px="sheet"]');
+      this.boot();
+    }, 0);
+  }
+  componentWillUnmount() { if (this._stop) this._stop(); this._stop = null; }
+  boot() {
+    if (this._stop || !this._map || !this._sheet || !this._map.getContext) return;
+    this._stop = startPixelOffice(this._map, this._sheet, () => ({
+      speed: Number(this.props.velocidad ?? 1),
+      kindling: this.props.kindling ?? 'mixto',
+      dia: Number(this.props.dia ?? 0),
+      guinos: this.props.guinos ?? true,
+      gag: this.props.gag ?? 'aleatorio',
+      emojis: this.props.emojis ?? true,
+      freq: Number(this.props.frecuencia ?? 6)
+    }));
+  }
+}
+
+window.__o={speed:1,kindling:'mixto',dia:0,guinos:true,gag:'aleatorio',emojis:true,freq:6};
+startPixelOffice(document.getElementById('m'),document.getElementById('s'),()=>window.__o);</script></body></html>

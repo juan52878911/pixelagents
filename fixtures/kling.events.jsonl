@@ -1,0 +1,14 @@
+{"time":"2026-01-15T09:00:01.500Z","type":"machine.created","id":"0000000000001000","name":"delega-20260110-0900-100","message":""}
+{"time":"2026-01-15T09:00:02.400Z","type":"machine.started","id":"0000000000001000","name":"delega-20260110-0900-100","message":""}
+{"time":"2026-01-15T09:00:03.900Z","type":"machine.created","id":"0000000000001001","name":"delega-20260111-0900-101","message":""}
+{"time":"2026-01-15T09:00:04.800Z","type":"machine.started","id":"0000000000001001","name":"delega-20260111-0900-101","message":""}
+{"time":"2026-01-15T09:00:06.300Z","type":"machine.created","id":"0000000000001002","name":"delega-20260112-0900-102","message":""}
+{"time":"2026-01-15T09:00:07.200Z","type":"machine.started","id":"0000000000001002","name":"delega-20260112-0900-102","message":""}
+{"time":"2026-01-15T09:00:11.200Z","type":"machine.frozen","id":"0000000000001002","name":"delega-20260112-0900-102","message":""}
+{"time":"2026-01-15T09:00:12.700Z","type":"machine.created","id":"0000000000001003","name":"delega-20260113-0900-103","message":""}
+{"time":"2026-01-15T09:00:13.600Z","type":"machine.started","id":"0000000000001003","name":"delega-20260113-0900-103","message":""}
+{"time":"2026-01-15T09:00:17.600Z","type":"machine.stopped","id":"0000000000001003","name":"delega-20260113-0900-103","message":"exit 0"}
+{"time":"2026-01-15T09:00:19.100Z","type":"machine.created","id":"0000000000001004","name":"sandbox-4","message":""}
+{"time":"2026-01-15T09:00:20.000Z","type":"machine.started","id":"0000000000001004","name":"sandbox-4","message":""}
+{"time":"2026-01-15T09:00:24.000Z","type":"machine.failed","id":"0000000000001004","name":"sandbox-4","message":"guest agent did not answer"}
+{"time":"2026-01-15T09:00:25.000Z","type":"machine.thawed","id":"0000000000001002","name":"delega-20260112-0900-102","message":""}

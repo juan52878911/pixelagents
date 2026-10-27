@@ -1,0 +1,72 @@
+[
+  {
+    "hook_event_name": "SessionStart",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "source": "startup"
+  },
+  {
+    "hook_event_name": "UserPromptSubmit",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "prompt": "SECRET PROMPT MUST NOT LEAK"
+  },
+  {
+    "hook_event_name": "PreToolUse",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "/home/dev/code/web-app/src/app.ts",
+      "old_string": "SECRET",
+      "new_string": "SECRET"
+    }
+  },
+  {
+    "hook_event_name": "PreToolUse",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "npm test -- --run"
+    }
+  },
+  {
+    "hook_event_name": "PostToolUse",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "tool_name": "Bash",
+    "tool_response": {
+      "stdout": "SECRET OUTPUT"
+    }
+  },
+  {
+    "hook_event_name": "Notification",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "message": "Claude needs your permission to use Bash"
+  },
+  {
+    "hook_event_name": "SubagentStart",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "agent_id": "sub-1"
+  },
+  {
+    "hook_event_name": "SubagentStop",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "agent_id": "sub-1"
+  },
+  {
+    "hook_event_name": "Stop",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app"
+  },
+  {
+    "hook_event_name": "SessionEnd",
+    "session_id": "abc",
+    "cwd": "/home/dev/code/web-app",
+    "reason": "exit"
+  }
+]
