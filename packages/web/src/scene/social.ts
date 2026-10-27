@@ -114,14 +114,15 @@ function hash(n: number): number { n = (n ^ 61) ^ (n >>> 16); n = Math.imul(n, 9
 /**
  * Draws the ping bubble (if any) and the effort indicator of an actor whose head is at (cx, cy).
  * Returns true when a bubble was drawn, so the caller skips its own state bubble.
+ * `lift` raises only the bubble (e.g. above a zone label), not the effort indicator.
  */
-export function drawSocial(g: Painter, d: ActorData, cx: number, cy: number, t: number): boolean {
+export function drawSocial(g: Painter, d: ActorData, cx: number, cy: number, t: number, lift = 0): boolean {
   drawEffort(g, d, cx, cy, t);
   const ping = social.pingOf(d.id, t);
   if (!ping) return false;
   const ic = PING_ICONS[ping.kind];
   const bob = ping.kind === 'error' ? Math.floor(t * 6) % 2 : 0;
-  const bx = cx + 7, by = cy - 13 - bob;
+  const bx = cx + 7, by = cy - 13 - bob - lift;
   if (ping.p > 0.8) {
     const pa = g.alpha((1 - ping.p) / 0.2);
     bubble(g, bx, by, 11, 11, '#ffffff');

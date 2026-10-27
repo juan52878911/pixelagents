@@ -70,6 +70,8 @@ export class Scene implements SceneApi {
   private dirty = true;
   private offices: OfficeRt[] = [];
   private talkNext = new Map<string, number>();
+  /** Per seated agent: px to raise its bubbles so they clear the zone label on its rug (0 = none). */
+  private bubbleLift = new Map<string, number>();
 
   constructor(o: SceneOptions) {
     this.engine = o.engine; this.store = o.store; this.root = o.root;
@@ -335,6 +337,7 @@ export class Scene implements SceneApi {
     const emojiIds = this.art.where({ kind: 'emoji' }).map((s) => s.name);
     const emo = emojiAt(t, fun, emojiIds, cand);
 
+    this.bubbleLift.clear();
     this.offices.forEach(({ o, idx: oi }) => {
       if (tb < o.doneAt) return;
       const fresh = tb - o.doneAt;
@@ -363,6 +366,11 @@ export class Scene implements SceneApi {
         let w = rw;
         if (xs.length && grow) w += Math.round((Math.max(extra + 29 - rx, rw) - rw) * Math.min(1, grow * 1.5));
         drawRug(g, rx, ry, w, RUGS[strHash(z.id) % RUGS.length]!, label, xs.length ? 1 : grow);
+        // bubbles (x cx+6..cx+20, bottom dy-12) that would cover the label go above the rug instead
+        if (label && w >= rw) {
+          const lx1 = rx + 2 + Math.min(rw - 4, measure(label, FONT_4x6) + 4);
+          for (const s of z.slots) if (s.agent && s.dx + 8 < lx1) this.bubbleLift.set(s.agent, s.dy - 12 - (ry + 1));
+        }
       }
       const door = list.some((d) => d.door), ding = list.reduce((m, d) => Math.max(m, d.ding), 0);
       drawDoor(g, art, o.x + o.door, o.y, door, ding);
@@ -399,7 +407,7 @@ export class Scene implements SceneApi {
         this.drawSeat(g, d, st, t, speaking, ex);
         const cx = d.slot.dx + 2, cy = d.slot.dy - 10;
         if (gag && gag.agent === d.id) GAGS[gag.id]?.draw(g, cx, cy, gag.p, t);
-        if (emo && emo.agent === d.id) this.drawEmoji(g, cx, cy, emo.id, emo.p, t);
+        if (emo && emo.agent === d.id) this.drawEmoji(g, cx, cy - (this.bubbleLift.get(d.id) ?? 0), emo.id, emo.p, t);
         if (this.selected === d.id) this.drawMarker(g, cx + 4, cy - 14, t);
         g.alpha(pa);
       }
@@ -465,29 +473,30 @@ export class Scene implements SceneApi {
     // what it is doing, at a glance
     const cat = d.ent.activity?.category;
     if ((st === 'work' || st === 'think' || st === 'wait') && cat && cat !== 'other') drawIcon(g, cat, dx - 6, dy - 16);
-    if (drawSocial(g, d, cx, cy, t)) return;
-    if (ex.say) { sayBubble(g, cx + 6, cy - 12, ex.say); return; }
+    const lift = this.bubbleLift.get(d.id) ?? 0, by = cy - lift;
+    if (drawSocial(g, d, cx, cy, t, lift)) return;
+    if (ex.say) { sayBubble(g, cx + 6, by - 12, ex.say); return; }
     if (st === 'think') {
-      if (!art.draw(g, 'bubble.think', cx + 7, cy - 9, { noAnchor: true, frame: Math.floor(t * 3) % 4 })) {
-        bubble(g, cx + 7, cy - 9, 11, 7, '#ffffff');
+      if (!art.draw(g, 'bubble.think', cx + 7, by - 9, { noAnchor: true, frame: Math.floor(t * 3) % 4 })) {
+        bubble(g, cx + 7, by - 9, 11, 7, '#ffffff');
         const n = Math.floor(t * 3) % 4;
-        for (let i = 0; i < n; i++) g.px(cx + 9 + i * 3, cy - 6, OL);
+        for (let i = 0; i < n; i++) g.px(cx + 9 + i * 3, by - 6, OL);
       }
     } else if (st === 'wait') {
       // blinking "!" bubble: bobs, and flashes so a waiting agent is seen across the town
       const b = Math.floor(t * 4) % 2, on = Math.floor(t * 2.5) % 4 !== 3;
-      if (on && !art.draw(g, 'bubble.wait', cx + 8, cy - 11 - b, { noAnchor: true })) {
-        bubble(g, cx + 8, cy - 11 - b, 7, 9, '#ffd23f');
-        g.rect(cx + 11, cy - 9 - b, 1, 3, OL); g.px(cx + 11, cy - 5 - b, OL);
+      if (on && !art.draw(g, 'bubble.wait', cx + 8, by - 11 - b, { noAnchor: true })) {
+        bubble(g, cx + 8, by - 11 - b, 7, 9, '#ffd23f');
+        g.rect(cx + 11, by - 9 - b, 1, 3, OL); g.px(cx + 11, by - 5 - b, OL);
       }
     } else if (st === 'sleep') {
       for (let i = 0; i < 3; i++) {
         const q = (t * 0.5 + i / 3) % 1;
         const pa = g.alpha(1 - q);
-        g.text('Z', cx + 8 + Math.round(q * 5), cy - 2 - Math.round(q * 11), '#dfe7ff');
+        g.text('Z', cx + 8 + Math.round(q * 5), by - 2 - Math.round(q * 11), '#dfe7ff');
         g.alpha(pa);
       }
-    } else if (st === 'talk' && speaking) talkBubble(g, art, cx + 7, cy - 9, t);
+    } else if (st === 'talk' && speaking) talkBubble(g, art, cx + 7, by - 9, t);
   }
 
   private drawEmoji(g: BufferPainter, cx: number, cy: number, id: string, p: number, t: number): void {
