@@ -176,7 +176,8 @@ describe('pixelagents agent', () => {
     const pa = f.hits.filter((h) => h.adapter === 'pa').map((h) => JSON.parse(h.lines[0]!));
     expect(pa.length).toBeGreaterThanOrEqual(2);
     expect(pa[0]).toMatchObject({ entity: 'host:box', kind: 'metric' });
-    expect(Object.keys(pa[0].attrs).sort()).toEqual(['cpus', 'load', 'mem_used_pct']);
-    expect(pa[0].attrs.cpus).toBeGreaterThan(0);
+    expect(Object.keys(pa[0].attrs).sort()).toEqual(['load', 'load1', 'mem_pct', 'ncpu']);
+    expect(pa[0].labels).toEqual({ host: 'box' });
+    expect(pa[0].attrs.ncpu).toBeGreaterThan(0);
   });
 });

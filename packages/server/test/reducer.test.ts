@@ -138,6 +138,7 @@ describe('classification and groups', () => {
         { name: 'skin', match: { 'labels.account': 'work' }, set: { 'view.skin': 'work', 'labels.team': 'blue' } },
         { name: 'explicit group', match: { 'labels.repo': 'special' }, set: { 'view.group': 'lab-{{labels.host}}' } },
         { name: 'minion', match: { kind: 'subagent' }, set: { 'view.behavior': 'minion' } },
+        { name: 'metrics only', match: { kind: ['host', 'account'] }, set: { 'view.hidden': true } },
       ],
     });
     const s = c.server;
@@ -147,6 +148,9 @@ describe('classification and groups', () => {
     s.ingest(ev(c.clock, 'agent:2', 'metric', { cost_usd: 0.5 }));
     s.ingest(ev(c.clock, 'agent:3', 'turn.start', undefined, { labels: { host: 'pc', repo: 'special' } }));
     s.ingest(ev(c.clock, 'subagent:4', 'fork.start', undefined, { parent: 'agent:1', labels: { host: 'mac' } }));
+    // hidden metric entities: one in an office (not counted), one with no host (no "" group)
+    s.ingest(ev(c.clock, 'host:mac', 'metric', { load: 40 }, { labels: { host: 'mac' } }));
+    s.ingest(ev(c.clock, 'account:work', 'metric', { spend_usd: 3 }));
 
     const snap = s.snapshot();
     const e = (id: string) => snap.entities.find((x) => x.id === id)!;
@@ -160,6 +164,8 @@ describe('classification and groups', () => {
     expect(g('mac')).toMatchObject({ kind: 'office', label: 'Office mac', labels: { host: 'mac' } });
     expect(g('mac').metrics).toEqual({ agents: 3, working: 1, waiting: 1, cost_usd: 1.75 });
     expect(g('lab-pc')).toMatchObject({ kind: 'lab', label: 'Office pc' });
+    expect(snap.groups.map((x) => x.id).sort()).toEqual(['lab-pc', 'mac']);
+    expect(e('host:mac').view.group).toBe('mac');
   });
 
   it('reclassifies everything when the config changes', async () => {

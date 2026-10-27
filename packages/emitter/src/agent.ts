@@ -230,15 +230,20 @@ export function startAgent(opts: AgentOptions): AgentHandle {
 
   const sendMetrics = async () => {
     const total = totalmem();
+    const load1 = loadavg()[0] ?? 0;
+    const ncpu = Math.max(1, cpus().length);
     const ev: PaEvent = {
       ts: now().toISOString(),
       source: 'pixelagents-agent',
       entity: `host:${host}`,
       kind: 'metric',
+      // Same names as plugin-host-stats: `load` is load1 per CPU in %, the offices' thermometer.
+      labels: { host },
       attrs: {
-        load: Math.round((loadavg()[0] ?? 0) * 100) / 100,
-        cpus: cpus().length,
-        mem_used_pct: total > 0 ? Math.round((1 - freemem() / total) * 1000) / 10 : 0,
+        load1: Math.round(load1 * 100) / 100,
+        ncpu,
+        load: Math.round((load1 / ncpu) * 10000) / 100,
+        mem_pct: total > 0 ? Math.round((1 - freemem() / total) * 10000) / 100 : 0,
       },
     };
     await post('pa', JSON.stringify(ev) + '\n');

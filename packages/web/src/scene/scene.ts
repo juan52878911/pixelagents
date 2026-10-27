@@ -509,7 +509,7 @@ export class Scene implements SceneApi {
   /** Load thermometer (metric `load`) and piggy bank (sum of cost_usd). */
   private drawGauges(g: BufferPainter, o: OfficeLayout, oi: number, t: number, fresh: number, list: ActorData[]): void {
     const grp = this.store.groups.get(o.id);
-    const host = this.store.entities.get('host:' + o.id);
+    const host = this.store.entities.get('host:' + o.id) ?? this.hostOf(o.id);
     let load = grp?.metrics?.load ?? host?.metrics?.load;
     if (load == null) {
       const present = list.filter((d) => d.place !== 'mini');
@@ -525,6 +525,12 @@ export class Scene implements SceneApi {
     const s = '$' + this.costOf(o.id).toFixed(2);
     g.text(s, gx + 7 - Math.round(txtW(s) / 2), o.y + 87, '#f5c542');
     if (fresh < 0.6) poof(g, gx + 6, o.y + 50, fresh / 0.6);
+  }
+
+  /** The host entity classified into this office (its id keeps the raw hostname when a rule renamed it). */
+  private hostOf(gid: string): Entity | undefined {
+    for (const e of this.store.entities.values()) if (e.kind === 'host' && e.view?.group === gid) return e;
+    return undefined;
   }
 
   private costOf(gid: string): number {

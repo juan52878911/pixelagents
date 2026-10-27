@@ -141,6 +141,8 @@ export class Store {
   private buildGroups(cfg: PaConfig): Map<string, Group> {
     const by = new Map<string, Entity[]>();
     for (const e of this.pub.values()) {
+      // Hidden entities (host/account metrics) feed gauges but neither make nor count in a group.
+      if (e.view.hidden) continue;
       const g = e.view.group as string;
       let arr = by.get(g);
       if (!arr) by.set(g, (arr = []));
