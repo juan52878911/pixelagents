@@ -9,11 +9,8 @@ import type { Engine } from '../engine/engine.js';
 import type { Entity as EcsEntity } from '../engine/ecs.js';
 import { BufferPainter } from '../engine/painter.js';
 import { PainterLayer } from '../engine/painter-gpu.js';
-import { registerStrategy as registerWorldStrategy, getStrategy } from '../world/strategies.js';
-import { getStrategies } from '../plugin-api.js';
 import { generateWorld, relayout } from '../world/index.js';
 import { GY, type DecorItem, type OfficeLayout, type WorldLayout } from '../world/types.js';
-import type { StrategyFn } from '../world/strategies.js';
 import type { Store, StoreChange } from '../store.js';
 import type { SceneApi } from '../ui/types.js';
 import { GAGS } from '../../../../plugins/pop/src/client/index.js';
@@ -75,7 +72,6 @@ export class Scene implements SceneApi {
     this.now = o.now ?? (() => new Date());
     this.art = new Art(this.engine.lib);
     registerSceneBehaviors();
-    bridgeStrategies();
     this.ctx = { world: this.engine.ecs, width: this.engine.width, height: this.engine.height, dt: 0 };
     this.tip = document.createElement('div');
     Object.assign(this.tip.style, {
@@ -678,13 +674,6 @@ export class Scene implements SceneApi {
 }
 
 interface SeatExtra { lift?: number; arms?: 'up'; say?: string; wave?: boolean; item?: string | null }
-
-/** Strategies registered by client plugins (plugin-api) become world generator strategies. */
-export function bridgeStrategies(): void {
-  for (const [name, def] of getStrategies()) {
-    if (typeof def === 'function' && !getStrategy(name)) registerWorldStrategy(name, def as StrategyFn);
-  }
-}
 
 export type { EcsEntity };
 export { allowedGags };

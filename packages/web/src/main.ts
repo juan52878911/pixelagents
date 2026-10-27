@@ -3,7 +3,9 @@
  * inspector and settings UI over the canvas. `?demo` feeds synthetic agents instead of the server.
  * `window.__pixelagents` is the hook used by scripts/scene-check.mjs (e2e).
  */
+import * as pixi from 'pixi.js';
 import { Engine } from './engine/engine.js';
+import { loadClientPlugins } from './plugin-api.js';
 import { Scene } from './scene/scene.js';
 import { Store, startDemo } from './store.js';
 import { mountInspector } from './ui/inspector.js';
@@ -26,6 +28,10 @@ async function main(): Promise<void> {
     preference: q.get('gpu') ? 'webgpu' : 'webgl',
     background: 0x14111b,
   });
+  // Client plugins take pixi from the host (one copy, shared GL state), so expose it before loading them.
+  const g = globalThis as unknown as { __pixelagents?: Record<string, unknown> };
+  g.__pixelagents = { ...g.__pixelagents, pixi };
+  if (!q.has('demo')) await loadClientPlugins(await clientPluginNames());
   const scene = new Scene({ engine, store, root: app });
   await scene.art.loadServer();
   const overlay = document.createElement('div');
@@ -39,7 +45,8 @@ async function main(): Promise<void> {
   else store.connect('/events');
   engine.start();
 
-  (window as unknown as { __pixelagents: unknown }).__pixelagents = {
+  g.__pixelagents = {
+    ...g.__pixelagents,
     store,
     engine,
     scene: {
@@ -51,6 +58,18 @@ async function main(): Promise<void> {
       api: scene,
     },
   };
+}
+
+/** Names of the server plugins that ship a browser bundle (`/api/plugins` → `client`). */
+async function clientPluginNames(): Promise<string[]> {
+  try {
+    const r = await fetch('/api/plugins');
+    if (!r.ok) return [];
+    const list = (await r.json()) as { name: string; client?: string }[];
+    return list.filter((p) => p.client).map((p) => p.name);
+  } catch {
+    return [];
+  }
 }
 
 void main();
