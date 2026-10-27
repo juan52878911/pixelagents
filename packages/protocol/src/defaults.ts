@@ -10,6 +10,8 @@ export const DEFAULT_CONFIG: PaConfig = {
   ],
   plugins: ['@pixelagents/plugin-claude-code', '@pixelagents/plugin-pop'],
   classify: [
+    // Hosts and accounts carry numbers (load, quota, spend) for the offices' gauges; they are not NPCs.
+    { name: 'metrics-only entities', match: { kind: ['host', 'account'] }, set: { 'view.hidden': true } },
     { name: 'subagents are minions', match: { kind: 'subagent' }, set: { 'view.behavior': 'minion' } },
     { name: 'skin by account', match: { 'labels.account': '*' }, set: { 'view.skin': '{{labels.account}}' } },
   ],
