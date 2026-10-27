@@ -3,5 +3,9 @@
   "version": "0.0.0",
   "type": "module",
   "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview-check": "node scripts/preview-check.mjs"
+  },
   "dependencies": { "@pixelagents/protocol": "*" }
 }
