@@ -44,6 +44,8 @@ export interface AgentHandle {
 interface FileState {
   offset: number;
   ino?: number;
+  /** Hex of the first bytes of the file: detects replacement by a file of the same size. */
+  sig?: string;
 }
 interface StateFile {
   v: 1;
@@ -71,6 +73,26 @@ function saveState(path: string, s: StateFile): void {
   const tmp = `${path}.tmp`;
   writeFileSync(tmp, JSON.stringify(s));
   renameSync(tmp, path);
+}
+
+function headHex(path: string, n: number): string {
+  try {
+    const fd = openSync(path, 'r');
+    try {
+      const b = Buffer.alloc(n);
+      return b.subarray(0, readSync(fd, b, 0, n, 0)).toString('hex');
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return '';
+  }
+}
+
+/** True when the file at `path` is not the one `fs.offset` refers to (truncated, rotated, replaced). */
+function wasReset(path: string, fs: FileState, size: number, ino: number): boolean {
+  if (size < fs.offset || (fs.ino !== undefined && ino !== fs.ino)) return true;
+  return fs.offset > 0 && fs.sig !== undefined && headHex(path, fs.sig.length / 2) !== fs.sig;
 }
 
 interface Chunk {
@@ -174,9 +196,10 @@ export function startAgent(opts: AgentOptions): AgentHandle {
         let fs = state.files[path];
         if (!fs) {
           fs = state.files[path] = { offset: 0, ino: st.ino };
-        } else if (st.size < fs.offset || (fs.ino !== undefined && st.ino !== fs.ino)) {
-          fs.offset = 0; // truncated or rotated
+        } else if (wasReset(path, fs, st.size, st.ino)) {
+          fs.offset = 0; // truncated, rotated or replaced
           fs.ino = st.ino;
+          fs.sig = undefined;
         }
         if (st.size <= fs.offset) break;
         const chunk = readLines(path, fs.offset, st.size, maxLines, maxBytes);
@@ -198,6 +221,7 @@ export function startAgent(opts: AgentOptions): AgentHandle {
         }
         stats.droppedLines += chunk.dropped;
         fs.offset += chunk.consumed;
+        fs.sig = headHex(path, Math.min(32, fs.offset));
         saveState(statePath, state);
       }
     }
@@ -258,7 +282,11 @@ export function startAgent(opts: AgentOptions): AgentHandle {
         // Idle and nothing readable left.
         const pending = files.some((p) => {
           try {
-            return statSync(p).size > (state.files[p]?.offset ?? 0);
+            const st = statSync(p);
+            const fs = state.files[p];
+            if (!fs) return st.size > 0;
+            // size != offset also covers truncation / rotation to a smaller file
+            return st.size !== fs.offset || wasReset(p, fs, st.size, st.ino);
           } catch {
             return false;
           }
