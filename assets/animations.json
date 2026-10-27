@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "note": "Mapeo por defecto de comportamientos a partes/frames/fps. Las claves head/body/legs/blinkHead/talkHead/bubble/item/sprite/overlay/overlays/fx solo contienen nombres de sprite u overlay de assets/*.px.json (fx = nombre en plugins/pop FX). Los numeros salen de design/prototype/prototype.html.",
+  "defaults": {
+    "blink": { "sprite": "char.front.head.blink", "every": 3.7, "for": 0.12 },
+    "legsWalkSequence": [1, 0, 2, 0],
+    "legsWalkFps": 8,
+    "stateKey": "view"
+  },
+  "behaviors": {
+    "type": {
+      "view": "front",
+      "head": "char.front.head",
+      "body": "char.front.body.seat",
+      "blinkHead": "char.front.head.blink",
+      "hands": { "fps": 9, "alternate": 2, "y": "desk", "color": "S" },
+      "monitor": { "state": "work", "scrollFps": 3 }
+    },
+    "think": {
+      "view": "front",
+      "head": "char.front.head",
+      "body": "char.front.body.seat",
+      "blinkHead": "char.front.head.blink",
+      "bubble": "bubble.think",
+      "bubbleFps": 3,
+      "bubbleFrames": [0, 3],
+      "monitor": { "state": "think", "cursorFps": 2 }
+    },
+    "wait": {
+      "view": "front",
+      "head": "char.front.head",
+      "body": "char.front.body.seat",
+      "blinkHead": "char.front.head.blink",
+      "bubble": "bubble.wait",
+      "bubbleBob": { "fps": 4, "dy": [0, -1] },
+      "monitor": { "state": "wait", "blinkFps": 3 }
+    },
+    "idle": {
+      "view": "front",
+      "head": "char.front.head",
+      "body": "char.front.body.seat",
+      "blinkHead": "char.front.head.blink",
+      "hands": { "fps": 0, "y": "desk" }
+    },
+    "sleep": {
+      "view": "front",
+      "head": "char.front.head.sleep",
+      "body": "char.front.body.seat",
+      "dy": 1,
+      "zzz": { "count": 3, "speed": 0.5, "dx": 5, "dy": 11, "color": "#dfe7ff" },
+      "monitor": { "state": "sleep" }
+    },
+    "walk": {
+      "front": { "head": "char.front.head", "body": "char.front.body", "legs": "char.front.legs" },
+      "side": { "head": "char.side.head", "body": "char.side.body", "legs": "char.side.legs", "handOverlays": ["char.hand.a", "char.hand.b"] },
+      "back": { "head": "char.back.head", "body": "char.back.body", "legs": "char.back.legs" },
+      "sequence": [1, 0, 2, 0],
+      "fps": 8
+    },
+    "talk": {
+      "view": "front",
+      "head": "char.front.head",
+      "talkHead": "char.front.head.talk",
+      "body": "char.front.body",
+      "legs": "char.front.legs",
+      "legsFrame": 0,
+      "mouthFps": 8,
+      "bubble": "bubble.talk",
+      "bubbleFps": 5
+    },
+    "scream": {
+      "view": "front",
+      "head": "char.front.head.scream",
+      "body": "char.front.body.up",
+      "overlay": "char.arms.up",
+      "jitterFps": 14
+    },
+    "arrive": {
+      "door": { "closed": "prop.door.closed", "open": "prop.door.open" },
+      "walk": "walk",
+      "items": { "work": "item.briefcase", "personal": "item.coffee", "plus": "item.backpack.front" },
+      "seated": { "work": "item.briefcase.seated", "personal": "item.coffee.seated", "plus": "item.backpack.seated" }
+    },
+    "leave": {
+      "door": { "closed": "prop.door.closed", "open": "prop.door.open" },
+      "walk": "walk",
+      "items": { "work": "item.briefcase", "personal": "item.coffee", "plus": "item.backpack.front" }
+    },
+    "minion": {
+      "sprite": "char.mini",
+      "bobFps": 4,
+      "spacing": 8,
+      "shadow": { "w": 4, "dy": 8, "color": "rgba(0,0,0,0.25)" }
+    },
+    "poof": {
+      "fx": "poof",
+      "duration": 0.7
+    },
+    "build": {
+      "head": "char.front.head",
+      "body": "char.front.body",
+      "legs": "char.front.legs",
+      "overlays": ["acc.hardhat", "acc.vest"],
+      "hammerUp": "item.hammer.up",
+      "hammerDown": "item.hammer.down",
+      "fps": 10
+    }
+  },
+  "accounts": {
+    "personal": { "overlays": ["acc.headphones"], "item": "item.coffee", "colors": { "B": "#3b7dd8", "b": "#2756a3", "P": "#34304a", "K": "#15121c", "a": "#6fa3ff", "A": "#dfe7f7" } },
+    "work": { "overlays": ["acc.tie"], "item": "item.briefcase", "colors": { "B": "#ec8a3c", "b": "#b8601f", "P": "#2d3340", "K": "#15121c", "T": "#7a1e2c", "W": "#f4efe6" } },
+    "plus": { "overlays": ["acc.cap"], "item": "item.backpack.front", "colors": { "B": "#9b5de5", "b": "#6a3bb0", "P": "#34304a", "K": "#15121c", "C": "#3fc79a", "c": "#25916c" } },
+    "builder": { "overlays": ["acc.hardhat", "acc.vest"], "colors": { "B": "#f28c28", "b": "#c86a12", "P": "#3b4a6b", "K": "#15121c", "C": "#ffd23f", "c": "#d4a417", "W": "#e8f0f4" } }
+  },
+  "skins": {
+    "skin": [["#f2c7a5", "#d9a37f"], ["#d9a07a", "#b97f58"], ["#a86b45", "#86512f"], ["#6e432a", "#55321d"]],
+    "hair": ["#2b1d16", "#5a3a22", "#c9a227", "#b5482a", "#d8d4cc", "#3a2e5c"],
+    "hairOverlays": [null, "hair.long", "hair.bun"]
+  }
+}

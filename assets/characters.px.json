@@ -1,0 +1,599 @@
+{
+ "px": 1,
+ "sprites": [
+  {
+   "name": "char.front.head",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5",
+    "E": "#1a1423"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HSSSSH..", "..SESSES..", "..SSSSSS..", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.front.head.blink",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HSSSSH..", "..SSSSSS..", "..SSSSSS..", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.front.head.sleep",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5",
+    "s": "#d9a37f"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HSSSSH..", "..SsSSsS..", "..SSSSSS..", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.front.head.talk",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5",
+    "E": "#1a1423",
+    "m": "#7a2a2a"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HSSSSH..", "..SESSES..", "..SSmmSS..", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.front.head.scream",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5",
+    "E": "#1a1423",
+    "m": "#7a2a2a"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HSSSSH..", "..SEEEES..", "..SSmmSS..", "...SmmS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.side.head",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5",
+    "E": "#1a1423"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HHHSSS..", "..HHSSES..", "..HSSSSSS.", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.side.head.blink",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HHHSSS..", "..HHSSSS..", "..HSSSSSS.", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.side.head.sleep",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5",
+    "s": "#d9a37f"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HHHSSS..", "..HHSSsS..", "..HSSSSSS.", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.back.head",
+   "w": 10,
+   "h": 6,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5"
+   },
+   "frames": [
+    ["...HHHH...", "..HHHHHH..", "..HHHHHH..", "..HHHHHH..", "..HHHHHH..", "...SSSS..."]
+   ],
+   "anchor": [5, 14],
+   "meta": {
+    "part": "head",
+    "dy": 0
+   }
+  },
+  {
+   "name": "char.front.body",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "B": "#3b7dd8",
+    "b": "#2756a3",
+    "S": "#f2c7a5"
+   },
+   "frames": [
+    ["..BBBBBB..", ".BBBBBBBB.", ".BbBBBBbB.", ".SbBBBBbS."]
+   ],
+   "anchor": [5, 8],
+   "meta": {
+    "part": "body",
+    "dy": 6
+   }
+  },
+  {
+   "name": "char.front.body.seat",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "B": "#3b7dd8",
+    "b": "#2756a3"
+   },
+   "frames": [
+    ["..BBBBBB..", ".BBBBBBBB.", ".BbBBBBbB.", ".BbBBBBbB."]
+   ],
+   "anchor": [5, 8],
+   "meta": {
+    "part": "body",
+    "dy": 6
+   }
+  },
+  {
+   "name": "char.front.body.up",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "b": "#2756a3",
+    "B": "#3b7dd8"
+   },
+   "frames": [
+    ["bBBBBBBBBb", "..BBBBBB..", "..BbBBbB..", "..BBBBBB.."]
+   ],
+   "anchor": [5, 8],
+   "meta": {
+    "part": "body",
+    "dy": 6
+   }
+  },
+  {
+   "name": "char.front.legs",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "P": "#34304a",
+    "K": "#15121c"
+   },
+   "frames": [
+    ["..PPPPPP..", "..PP..PP..", "..PP..PP..", "..KK..KK.."],
+    ["..PPPPPP..", "..PP..PP..", "..PP..KK..", "..KK......"],
+    ["..PPPPPP..", "..PP..PP..", "..KK..PP..", "......KK.."]
+   ],
+   "anchor": [5, 4],
+   "meta": {
+    "part": "legs",
+    "dy": 10
+   },
+   "tags": {
+    "stand": [0, 0],
+    "step": [1, 2]
+   }
+  },
+  {
+   "name": "char.back.body",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "B": "#3b7dd8",
+    "b": "#2756a3",
+    "S": "#f2c7a5"
+   },
+   "frames": [
+    ["..BBBBBB..", ".BBBBBBBB.", ".BbBBBBbB.", ".SbBBBBbS."]
+   ],
+   "anchor": [5, 8],
+   "meta": {
+    "part": "body",
+    "dy": 6
+   }
+  },
+  {
+   "name": "char.back.body.seat",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "B": "#3b7dd8",
+    "b": "#2756a3"
+   },
+   "frames": [
+    ["..BBBBBB..", ".BBBBBBBB.", ".BbBBBBbB.", ".BbBBBBbB."]
+   ],
+   "anchor": [5, 8],
+   "meta": {
+    "part": "body",
+    "dy": 6
+   }
+  },
+  {
+   "name": "char.back.body.up",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "b": "#2756a3",
+    "B": "#3b7dd8"
+   },
+   "frames": [
+    ["bBBBBBBBBb", "..BBBBBB..", "..BbBBbB..", "..BBBBBB.."]
+   ],
+   "anchor": [5, 8],
+   "meta": {
+    "part": "body",
+    "dy": 6
+   }
+  },
+  {
+   "name": "char.back.legs",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "P": "#34304a",
+    "K": "#15121c"
+   },
+   "frames": [
+    ["..PPPPPP..", "..PP..PP..", "..PP..PP..", "..KK..KK.."],
+    ["..PPPPPP..", "..PP..PP..", "..PP..KK..", "..KK......"],
+    ["..PPPPPP..", "..PP..PP..", "..KK..PP..", "......KK.."]
+   ],
+   "anchor": [5, 4],
+   "meta": {
+    "part": "legs",
+    "dy": 10
+   },
+   "tags": {
+    "stand": [0, 0],
+    "step": [1, 2]
+   }
+  },
+  {
+   "name": "char.side.body",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "B": "#3b7dd8",
+    "b": "#2756a3"
+   },
+   "frames": [
+    ["...BBBB...", "...BBBBB..", "...BbBBB..", "...BbBBB.."]
+   ],
+   "anchor": [5, 8],
+   "meta": {
+    "part": "body",
+    "dy": 6
+   }
+  },
+  {
+   "name": "char.side.legs",
+   "w": 10,
+   "h": 4,
+   "palette": {
+    "P": "#34304a",
+    "K": "#15121c"
+   },
+   "frames": [
+    ["...PPPP...", "...PP.P...", "...PP.P...", "...KK.KK.."],
+    ["...PPPP...", "..PP..P...", ".PP....P..", ".KK....KK."],
+    ["...PPPP...", "....PP....", "....PP....", "....KKK..."]
+   ],
+   "anchor": [5, 4],
+   "meta": {
+    "part": "legs",
+    "dy": 10
+   },
+   "tags": {
+    "stand": [0, 0],
+    "step": [1, 2]
+   }
+  },
+  {
+   "name": "char.mini",
+   "w": 6,
+   "h": 8,
+   "palette": {
+    "H": "#2b1d16",
+    "S": "#f2c7a5",
+    "E": "#1a1423",
+    "B": "#3b7dd8",
+    "P": "#34304a",
+    "K": "#15121c"
+   },
+   "frames": [
+    [".HHHH.", "HSSSSH", "SESSES", "SSSSSS", ".BBBB.", "SBBBBS", ".PPPP.", ".K..K."]
+   ],
+   "anchor": [3, 8],
+   "meta": {
+    "part": "whole",
+    "note": "subagente"
+   }
+  }
+ ],
+ "overlays": [
+  {
+   "name": "hair.long",
+   "views": {
+    "front": [
+     [
+      1,
+      2,
+      "H"
+     ],
+     [
+      1,
+      3,
+      "H"
+     ],
+     [
+      1,
+      4,
+      "H"
+     ],
+     [
+      8,
+      2,
+      "H"
+     ],
+     [
+      8,
+      3,
+      "H"
+     ],
+     [
+      8,
+      4,
+      "H"
+     ]
+    ],
+    "side": [
+     [
+      2,
+      5,
+      "H"
+     ],
+     [
+      3,
+      5,
+      "H"
+     ]
+    ],
+    "back": [
+     [
+      1,
+      2,
+      "H"
+     ],
+     [
+      1,
+      3,
+      "H"
+     ],
+     [
+      1,
+      4,
+      "H"
+     ],
+     [
+      8,
+      2,
+      "H"
+     ],
+     [
+      8,
+      3,
+      "H"
+     ],
+     [
+      8,
+      4,
+      "H"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "hair.bun",
+   "views": {
+    "front": [
+     [
+      4,
+      -1,
+      "H"
+     ],
+     [
+      5,
+      -1,
+      "H"
+     ],
+     [
+      4,
+      -2,
+      "H"
+     ],
+     [
+      5,
+      -2,
+      "H"
+     ]
+    ],
+    "side": [
+     [
+      1,
+      0,
+      "H"
+     ],
+     [
+      1,
+      1,
+      "H"
+     ],
+     [
+      2,
+      0,
+      "H"
+     ]
+    ],
+    "back": [
+     [
+      4,
+      -1,
+      "H"
+     ],
+     [
+      5,
+      -1,
+      "H"
+     ],
+     [
+      4,
+      -2,
+      "H"
+     ],
+     [
+      5,
+      -2,
+      "H"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "char.arms.up",
+   "views": {
+    "front": [
+     [
+      0,
+      4,
+      "S"
+     ],
+     [
+      9,
+      4,
+      "S"
+     ],
+     [
+      0,
+      5,
+      "b"
+     ],
+     [
+      9,
+      5,
+      "b"
+     ]
+    ],
+    "back": [
+     [
+      0,
+      4,
+      "S"
+     ],
+     [
+      9,
+      4,
+      "S"
+     ],
+     [
+      0,
+      5,
+      "b"
+     ],
+     [
+      9,
+      5,
+      "b"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "char.hand.a",
+   "views": {
+    "side": [
+     [
+      4,
+      9,
+      "S"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "char.hand.b",
+   "views": {
+    "side": [
+     [
+      6,
+      9,
+      "S"
+     ]
+    ]
+   }
+  }
+ ]
+}
